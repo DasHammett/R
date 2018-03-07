@@ -365,7 +365,7 @@ IQE.Delta <- function(timeframe = week, T2 = T,from,to,number = 6){
 # Quarterly adoption
 Raw.MMIK %>%
   select(Fiscal.Week,Attribute) %>%
-  filter(Call.Monitor.Type != "IQE Review") %>%
+  filter(Call.Monitor.Type == "Random") %>%
   mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
          Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
                              grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
@@ -456,7 +456,7 @@ PQS <- function(chart,lob,...) {
   #lob <- force(lob)
   #args <- as.list(match.call())[-1]
   #a <- do.call(data_preparation,args)
-  a <- data_preparation(...)
+  a <- data_preparation(lob,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   title.chart <- a[[3]]
@@ -541,6 +541,9 @@ IQE.Delta <- function(T2 = T,lob,...) {
   a <- do.call(data_preparation,args)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
+  if(T2 == F){
+    Raw.MMIK <- filter(Raw.MMIK,!grepl("Tier 2",Advisor.Staff.Type))
+  }
   Raw.MMIK %>%
     select(!!timefr,Monitor.Method,Call.Monitor.Type,Atts$Attribute) %>%
     filter(grepl("Random|IQE Review",Call.Monitor.Type),
