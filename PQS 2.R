@@ -563,7 +563,7 @@ IQE.Delta <- function(T2 = T,lob,...) {
 }
 Delta <- function(attribute,lob,...) {
   environment(data_preparation) <- environment()
-  #args <- as.list(match.call())[-1]
+   #args <- as.list(match.call())[-1]
   #a <- do.call(data_preparation,args)
   a <- data_preparation(...)
   att <- enquo(attribute)
