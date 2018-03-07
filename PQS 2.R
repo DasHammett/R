@@ -558,12 +558,13 @@ IQE.Delta <- function(T2 = T,lob,...) {
 }
 Delta <- function(attribute,lob,...) {
   environment(data_preparation) <- environment()
-  args <- as.list(match.call())[-1]
-  a <- do.call(data_preparation,args)
+  #args <- as.list(match.call())[-1]
+  #a <- do.call(data_preparation,args)
+  a <- data_preparation(...)
   att <- enquo(attribute)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
-  Raw.MMIK %>%
+  Table_melt <- Raw.MMIK %>%
     select(!!timefr,Call.Monitor.Type,!!attribute) %>%
     filter(!!att != "N/A") %>%
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
@@ -572,4 +573,8 @@ Delta <- function(attribute,lob,...) {
                                                   (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
     melt() %>%
     spread(!!timefr,value)
+  if(!missing(lob)){
+    colnames(Table_melt)[1] <- lob
+  }
+  return(Table_melt)
 }
