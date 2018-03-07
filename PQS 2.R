@@ -497,19 +497,19 @@ PQS <- function(chart,lob,...) {
 }
 Drivers <- function(attribute,lob,...) {
   att <- enquo(attribute)
-  atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
-  filtering <- get(atts,Atts)
+  #atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
+  #filtering <- get(atts,Atts)
   environment(data_preparation) <- environment()
-  args <- as.list(match.call())[-1]
-  #a <- data_preparation(...)
-  a <- do.call(data_preparation,args)
+  #args <- as.list(match.call())[-1]
+  a <- data_preparation(lob,...)
+  #a <- do.call(data_preparation,args)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
-  MMIK <- Raw.MMIK %>% 
-    select(!!timefr,filtering) %>%
-    group_by(!!timefr)
   if(!missing(lob)){
-    Table <- MMIK %>%
+    Table <- 
+      Raw.MMIK %>%
+      select(!!timefr,Advisor.Staff.Type,attribute) %>%
+      group_by(!!timefr) %>%
       filter(Advisor.Staff.Type == lob) %>%
       mutate_at(vars(3:length(.data)),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
       mutate(Errors = round(sum((!!att) == 0, na.rm = T),0)) %>% 
@@ -521,7 +521,9 @@ Drivers <- function(attribute,lob,...) {
     names(Table)[1] <- lob
     return(Table)
   } else {
-    MMIK %>%
+    Raw.MMIK %>%
+      select(!!timefr,attribute) %>%
+      group_by(!!timefr) %>%
       mutate_at(vars(3:length(.data)),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
       mutate(Errors = round(sum((!!att) == 0, na.rm = T),0)) %>% 
       summarise_all(first) %>%
