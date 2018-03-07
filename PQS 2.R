@@ -17,29 +17,23 @@ Raw.MMIK <- filter(Raw.MMIK,grepl("Barcelona",Advisor.Site),
 colnames(Raw.MMIK) <- gsub("\\.{2}","\\.",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.unique(colnames(Raw.MMIK))
 
-
-Assure <- select(Raw.MMIK, Assure:Knowledge) %>% select(-ncol(.)) %>% colnames()
-Knowledge <- select(Raw.MMIK, Knowledge:Guidance) %>% select(-ncol(.)) %>% colnames()
-Guidance <- select(Raw.MMIK, Guidance:Professionalism) %>% select(-ncol(.)) %>% colnames()
-Professionalism <- select(Raw.MMIK, Professionalism:Holds) %>% select(-ncol(.)) %>% colnames()
-Holds <- select(Raw.MMIK, Holds:Case.Duration) %>% select(-ncol(.)) %>% colnames()
-Case.Duration <- select(Raw.MMIK, Case.Duration:Logging) %>% select(-ncol(.)) %>% colnames()
-Logging <- select(Raw.MMIK, Logging:Tools) %>% select(-ncol(.)) %>% colnames()
-Tools <- select(Raw.MMIK, Tools:Refunds) %>% select(-ncol(.)) %>% colnames()
-Refunds <- select(Raw.MMIK, Refunds:Consultations) %>% select(-ncol(.)) %>% colnames()
-Consultations <- select(Raw.MMIK, Consultations:Ownership) %>% select(-ncol(.)) %>% colnames()
-Ownership <- select(Raw.MMIK, Ownership:Compliance) %>% select(-ncol(.)) %>% colnames()
-Compliance <- select(Raw.MMIK, Compliance:Was.the.issue.resolved.during.the.interaction) %>% select(-ncol(.)) %>% colnames()
-Attribute <- c(5,14,28,32,45,51,62,69,89,110,119,130,138,147) #From BVHQ_MMIK report
-Att <- names(Raw.MMIK)[Attribute][-1:-2]
-Att <- Att[-9]
-Atts <- sapply(Att,function(x) names(Raw.MMIK)[eval(substitute(x,list(x = as.name(x))))])
-Atts$Attribute <- names(Raw.MMIK)[Attribute][-1:-2]
-
-#T1 <- "EMEA Tier 1 iOS Phone Spanish"
-#T2 <- "EMEA Tier 2 iOS Phone Spanish"
-#Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
-#lobs <- c(T1,Mac,T2)
+Attributes <- list()
+Attributes$Assure <- select(Raw.MMIK, Assure:Knowledge) %>% select(-ncol(.)) %>% colnames()
+Attributes$Knowledge <- select(Raw.MMIK, Knowledge:Guidance) %>% select(-ncol(.)) %>% colnames()
+Attributes$Guidance <- select(Raw.MMIK, Guidance:Professionalism) %>% select(-ncol(.)) %>% colnames()
+Attributes$Professionalism <- select(Raw.MMIK, Professionalism:Holds) %>% select(-ncol(.)) %>% colnames()
+Attributes$Holds <- select(Raw.MMIK, Holds:Case.Duration) %>% select(-ncol(.)) %>% colnames()
+Attributes$Case.Duration <- select(Raw.MMIK, Case.Duration:Logging) %>% select(-ncol(.)) %>% colnames()
+Attributes$Logging <- select(Raw.MMIK, Logging:Tools) %>% select(-ncol(.)) %>% colnames()
+Attributes$Tools <- select(Raw.MMIK, Tools:Refunds) %>% select(-ncol(.)) %>% colnames()
+Attributes$Refunds <- select(Raw.MMIK, Refunds:Consultations) %>% select(-ncol(.)) %>% colnames()
+Attributes$Consultations <- select(Raw.MMIK, Consultations:Ownership) %>% select(-ncol(.)) %>% colnames()
+Attributes$Ownership <- select(Raw.MMIK, Ownership:Compliance) %>% select(-ncol(.)) %>% colnames()
+Attributes$Compliance <- select(Raw.MMIK, Compliance:Was.the.issue.resolved.during.the.interaction) %>% select(-ncol(.)) %>% colnames()
+Attributes$Attributes <- names(Attributes)
+T1 <- "EMEA Tier 1 iOS Phone Spanish"
+T2 <- "EMEA Tier 2 iOS Phone Spanish"
+Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
 
 
@@ -378,6 +372,7 @@ Raw.MMIK %>%
   summarise(Adoption = mean(Adoption))
 
 data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, advisor, number = 6, from, to,...) {
+  test <- c("Test1","Test2")
   Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Evaluator Directed")
   Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Calibration")
   quo_timeframe <- enquo(timeframe)
@@ -452,16 +447,12 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
 }
 
 PQS <- function(chart,lob,...) {
-  environment(data_preparation) <- environment()
-  #lob <- force(lob)
-  #args <- as.list(match.call())[-1]
-  #a <- do.call(data_preparation,args)
   a <- data_preparation(lob,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   title.chart <- a[[3]]
   Table <- Raw.MMIK %>%
-    select(!!timefr,ACC:AOC,Atts$Attribute) %>%
+    select(!!timefr,ACC:AOC,Attributes$Attributes) %>%
     group_by(!!timefr) %>%
     mutate_at(vars(1:length(.data)),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
     mutate(N = n()) %>%
@@ -495,14 +486,12 @@ PQS <- function(chart,lob,...) {
       labs(title = title.chart)
   }
 }
+
 Drivers <- function(attribute,lob,...) {
+  atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
-  #atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
-  #filtering <- get(atts,Atts)
-  environment(data_preparation) <- environment()
-  #args <- as.list(match.call())[-1]
+  attribute <- get(atts,Attributes) 
   a <- data_preparation(lob,...)
-  #a <- do.call(data_preparation,args)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   if(!missing(lob)){
@@ -511,10 +500,10 @@ Drivers <- function(attribute,lob,...) {
       select(!!timefr,Advisor.Staff.Type,attribute) %>%
       group_by(!!timefr) %>%
       filter(Advisor.Staff.Type == lob) %>%
-      mutate_at(vars(3:length(.data)),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
+      mutate_at(vars(-1),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
       mutate(Errors = round(sum((!!att) == 0, na.rm = T),0)) %>% 
       summarise_all(first) %>%
-      select(!!timefr,4:ncol(.)) %>%
+      select(-2) %>%
       melt() %>%
       spread(!!timefr,value) %>%
       mutate(N = rowSums(.[2:ncol(.)]))
@@ -524,18 +513,16 @@ Drivers <- function(attribute,lob,...) {
     Raw.MMIK %>%
       select(!!timefr,attribute) %>%
       group_by(!!timefr) %>%
-      mutate_at(vars(3:length(.data)),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
+      mutate_at(vars(-1),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
       mutate(Errors = round(sum((!!att) == 0, na.rm = T),0)) %>% 
       summarise_all(first) %>%
-      select(!!timefr,4:ncol(.)) %>%
+      select(-2) %>%
       melt() %>%
       spread(!!timefr,value) %>%
-      mutate( N = rowSums(.[2:ncol(.)]))
+      mutate(N = rowSums(.[2:ncol(.)]))
   }
-  
-  
-  
 }
+
 IQE.Delta <- function(T2 = T,lob,...) {
   environment(data_preparation) <- environment()
   args <- as.list(match.call())[-1]
@@ -554,19 +541,19 @@ IQE.Delta <- function(T2 = T,lob,...) {
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
     group_by(!!timefr) %>%
     summarise_at(vars(3:(length(.data)-1)),funs((sum(.[IQE == 1] == 1,na.rm = T)/(sum(!is.na(.[IQE == 1]))))-
-                                                  (sum(.[IQE == 0] == 1,na.rm = T)/(sum(!is.na(.[IQE == 0])))))) %>%
+                                                (sum(.[IQE == 0] == 1,na.rm = T)/(sum(!is.na(.[IQE == 0])))))) %>%
     mutate(Delta = select(.,-(!!timefr)) %>% rowMeans(na.rm = T)) %>% 
     #mutate(Delta = select(.,-(!!timefr),-Holds) %>% rowMeans(na.rm = T)) %>% 
     melt() %>%
     mutate(value = round(value,4)) %>%
     spread(!!timefr,value)
 }
+
 Delta <- function(attribute,lob,...) {
-  environment(data_preparation) <- environment()
-   #args <- as.list(match.call())[-1]
-  #a <- do.call(data_preparation,args)
-  a <- data_preparation(...)
+  atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
+  attribute <- get(atts,Attributes) 
+  a <- data_preparation(...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   Table_melt <- Raw.MMIK %>%
@@ -575,7 +562,7 @@ Delta <- function(attribute,lob,...) {
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
     group_by(!!timefr) %>%
     summarise_at(vars(5:(length(.data)-1)),funs((sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T))-
-                                                  (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
+                                                (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
     melt() %>%
     spread(!!timefr,value)
   if(!missing(lob)){
