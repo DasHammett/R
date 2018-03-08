@@ -252,7 +252,7 @@ Outliers <- function(attribute, lob, rows, ...){
   if(missing(attribute)) {
     Table <- Raw.MMIK %>%
       filter(Advisor != "") %>%
-      select(!!timefr,Advisor,Advisor.Staff.Type,!!att) %>%
+      select(!!timefr,Advisor,Advisor.Staff.Type,Attributes$Attributes) %>%
       na_if("N/A") %>%
       mutate_at(vars(5:ncol(.)),funs(as.numeric)) %>%
       mutate(N = rowSums(.[5:ncol(.)] == 0, na.rm = T)) %>%
@@ -279,4 +279,3 @@ Outliers <- function(attribute, lob, rows, ...){
   }
   return(Table)
 }
-
