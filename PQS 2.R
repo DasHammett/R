@@ -167,7 +167,9 @@ PQS <- function(chart,lob,...) {
 }
 
 Drivers <- function(attribute,lob,...) {
+  atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
+  attribute <- get(atts,Attributes) 
   a <- data_preparation(lob,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
@@ -177,10 +179,10 @@ Drivers <- function(attribute,lob,...) {
       select(!!timefr,Advisor.Staff.Type,attribute) %>%
       group_by(!!timefr) %>%
       filter(Advisor.Staff.Type == lob) %>%
-      mutate_at(vars(-1),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
-      mutate(Errors = round(sum((!!att) == 0, na.rm = T),0)) %>% 
+      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
+      mutate_at(vars(-1,-Errors),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
       summarise_all(first) %>%
-      select(-2) %>%
+      select(-2:-3) %>%
       melt() %>%
       spread(!!timefr,value) %>%
       mutate(N = rowSums(.[2:ncol(.)]))
@@ -190,8 +192,8 @@ Drivers <- function(attribute,lob,...) {
     Raw.MMIK %>%
       select(!!timefr,attribute) %>%
       group_by(!!timefr) %>%
-      mutate_at(vars(-1),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
-      mutate(Errors = round(sum((!!att) == 0, na.rm = T),0)) %>% 
+      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
+      mutate_at(vars(-1,-Errors),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
       summarise_all(first) %>%
       select(-2) %>%
       melt() %>%
@@ -224,21 +226,32 @@ IQE.Delta <- function(T2 = T,lob,...) {
 }
 
 Delta <- function(attribute,lob,...) {
+  atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
   attribute <- get(atts,Attributes) 
   a <- data_preparation(...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   Table_melt <- Raw.MMIK %>%
-    select(!!timefr,Call.Monitor.Type,!!attribute) %>%
+    select(!!timefr,Call.Monitor.Type,attribute) %>%
     filter(!!att != "N/A") %>%
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
     group_by(!!timefr) %>%
-    summarise_at(vars(5:(length(.data)-1)),funs((sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T))-
+    summarise_at(vars(-1:-2,-IQE),funs((sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T))-
                                                 (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
     melt() %>%
     spread(!!timefr,value)
   if(!missing(lob)){
+  Table_melt <- Raw.MMIK %>%
+    select(!!timefr,Call.Monitor.Type,Advisor.Staff.Type,attribute) %>%
+    filter(!!att != "N/A",
+           Advisor.Staff.Type == lob) %>%
+    mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
+    group_by(!!timefr) %>%
+    summarise_at(vars(-1:-3,-IQE),funs((sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T))-
+                                                (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
+    melt() %>%
+    spread(!!timefr,value)
     colnames(Table_melt)[1] <- lob
   }
   return(Table_melt)
