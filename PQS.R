@@ -13,7 +13,7 @@ colnames(Raw.MMIK) <- make.names(names(Raw.MMIK),unique = T)
 Raw.MMIK <- filter(Raw.MMIK,grepl("Barcelona",Advisor.Site),
                    #Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),6),
                    Call.Monitor.Type != "Calibration",
-                   !grepl("2016|2017P01|2017P02|2017P03|2017P04|2017P05",Fiscal.Week))
+                   !grepl("2016|2017P01|2017P02|2017P03|2017P04|2017P05|2017P06",Fiscal.Week))
 colnames(Raw.MMIK) <- gsub("\\.{2}","\\.",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.unique(colnames(Raw.MMIK))
 
@@ -68,11 +68,11 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
   }
   if(quo_timeframe == "~week"){
     timefr <- quo(Fiscal.Week)
-    if(!missing(from)){
+    if(!missing(from) || !missing(to)){
       from <- grep(substitute(from),Raw.MMIK$Fiscal.Week, value = T)[1]
       to <- grep(substitute(to),Raw.MMIK$Fiscal.Week, value = T)[1]
       Raw.MMIK <- Raw.MMIK %>%
-        filter(Fiscal.Week >= from & Fiscal.Week <= to)
+        filter(Fiscal.Week >= from & Fiscal.Week <= to) %>% filter(Fiscal.Week %in% tail(sort(unique(!!timefr)),number))
     } else {    Raw.MMIK <- Raw.MMIK %>% 
       filter(Fiscal.Week %in% tail(sort(unique(!!timefr)),number))
     }
@@ -80,11 +80,11 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
   if(quo_timeframe == "~period"){
     timefr <- quo(Period)
     Raw.MMIK$Period <- str_extract(Raw.MMIK$Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}")
-    if(!missing(from)){
+    if(!missing(from) || !missing(to)){
       from <- grep(substitute(from),Raw.MMIK$Period, value = T)[1]
       to <- grep(substitute(to),Raw.MMIK$Period, value = T)[1]
       Raw.MMIK <- Raw.MMIK %>%
-        filter(Period >= !!from & Period <= !!to)
+        filter(Period >= from & Period <= to) %>% filter(Period %in% tail(sort(unique(!!timefr)),number))
     } else {
       Raw.MMIK <- Raw.MMIK %>% filter(Period %in% tail(sort(unique(!!timefr)),number))
     }
@@ -238,7 +238,7 @@ Delta <- function(attribute,lob,...) {
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
     group_by(!!timefr) %>%
     summarise_at(vars(-1:-2,-IQE),funs((sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T))-
-                                                (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
+                                       (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
     melt() %>%
     spread(!!timefr,value)
   if(!missing(lob)){
