@@ -292,3 +292,11 @@ Outliers <- function(attribute, lob, rows, ...){
   }
   return(Table)
 }
+
+
+Raw.MMIK %>%
+  filter(Call.Monitor.Type != "IQE Review") %>%
+  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}")) %>%
+  group_by(Period) %>%
+  count(Advisor) %>%
+  dcast(Advisor~Period, value.var = "n")
