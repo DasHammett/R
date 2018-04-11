@@ -16,6 +16,8 @@ Raw.MMIK <- filter(Raw.MMIK,grepl("Barcelona",Advisor.Site),
                    !grepl("2016|2017P01|2017P02|2017P03|2017P04|2017P05|2017P06",Fiscal.Week))
 colnames(Raw.MMIK) <- gsub("\\.{2}","\\.",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.unique(colnames(Raw.MMIK))
+Raw.MMIK$Call.Duration <- sapply(strsplit(Raw.MMIK$Call.Duration,":"), function(x)as.numeric(x[1])*60+as.numeric(x[2])+as.numeric(x[3])/60) #Convert time to decimal
+Raw.MMIK$Period <- str_extract(Raw.MMIK$Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}")
 
 Attributes <- list()
 Attributes$Assure <- select(Raw.MMIK, Assure:Knowledge) %>% select(-ncol(.)) %>% colnames()
@@ -29,7 +31,7 @@ Attributes$Tools <- select(Raw.MMIK, Tools:Refunds) %>% select(-ncol(.)) %>% col
 Attributes$Refunds <- select(Raw.MMIK, Refunds:Consultations) %>% select(-ncol(.)) %>% colnames()
 Attributes$Consultations <- select(Raw.MMIK, Consultations:Ownership) %>% select(-ncol(.)) %>% colnames()
 Attributes$Ownership <- select(Raw.MMIK, Ownership:Compliance) %>% select(-ncol(.)) %>% colnames()
-Attributes$Compliance <- select(Raw.MMIK, Compliance:Was.the.issue.resolved.during.the.interaction) %>% select(-ncol(.)) %>% colnames()
+Attributes$Compliance <- select(Raw.MMIK, Compliance:Was.the.issue.rPQesolved.during.the.interaction) %>% select(-ncol(.)) %>% colnames()
 Attributes$Attributes <- names(Attributes)
 T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
@@ -64,7 +66,7 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
     Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Announced")
   }
   if(random == TRUE){
-    Raw.MMIK <- Raw.MMIK %>% filter(!grepl("Business Directed|Evaluator Directed",Call.Monitor.Type))
+    Raw.MMIK <- Raw.MMIK %>% filter(!grepl("Business Directed|Evaluator Directed|DSAT Review",Call.Monitor.Type))
   }
   if(quo_timeframe == "~week"){
     timefr <- quo(Fiscal.Week)
@@ -79,7 +81,6 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
   }
   if(quo_timeframe == "~period"){
     timefr <- quo(Period)
-    Raw.MMIK$Period <- str_extract(Raw.MMIK$Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}")
     if(!missing(from) || !missing(to)){
       from <- grep(substitute(from),Raw.MMIK$Period, value = T)[1]
       to <- grep(substitute(to),Raw.MMIK$Period, value = T)[1]
@@ -293,10 +294,18 @@ Outliers <- function(attribute, lob, rows, ...){
   return(Table)
 }
 
+### AHT Delta ###
+Raw.MMIK %>% 
+  filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>% 
+  group_by(Period,Call.Monitor.Type) %>% 
+  summarise(AHT = mean(Call.Duration, na.rm = T)) %>% 
+  dcast(Period~Call.Monitor.Type) %>% 
+  mutate(Delta = Random - `IQE Review`)
+
 
 Raw.MMIK %>%
   filter(Call.Monitor.Type != "IQE Review") %>%
-  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}")) %>%
   group_by(Period) %>%
   count(Advisor) %>%
-  dcast(Advisor~Period, value.var = "n")
+  dcast(Advisor~Period, value.var = "n") %>% 
+  filter(!is.na(rowSums(.[c(ncol(.),ncol(.)-1)])))
