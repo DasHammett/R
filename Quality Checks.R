@@ -2,9 +2,9 @@ library(readxl)
 setwd("/Users/jvidal/Desktop/ R Scripts")
 
 ######### DSAT Review ################
-Raw.data <- load_excel(file.choose(),sheet=10) #Load QRM drivers file
+Raw.data <- load_excel(file.choose(),sheet="CSAT Raw data") #Load QRM drivers file
 select(Raw.data,Manager,Queue.Type.Name,Case.ID,Fiscal.Week,CSAT,Customer.Comments,Manager.RCA,Manager.Comments) %>%
-  filter(grepl("P05",Fiscal.Week),
+  filter(grepl("P06",Fiscal.Week),
          grepl("3|4|5", CSAT),
          grepl("<NEWLINECHAR>",Manager.Comments)) %>%
   group_by(Manager) %>%
@@ -124,7 +124,7 @@ Raw.FSFK %>%
   filter(Linked.Cases >= 0.80) %>% 
   arrange(Role,desc(Improvement)) %>% 
   group_by(Role) %>% 
-  top_n(4) %>%
+  top_n(6) %>%
   left_join(.,WFM, by = c("Advisor" = "Full.Name")) %>% 
   select(Role,Advisor,HR.ID,Article.Count,Note.Count,Linked.Cases,Improvement)
 
@@ -143,3 +143,20 @@ Raw.FSFK %>%
   top_n(4) %>%
   left_join(.,WFM, by = c("Advisor" = "Full.Name")) %>% 
   select(Role,Advisor,HR.ID,Article.Count,Note.Count,Linked.Cases,Improvement)
+
+
+
+
+select(Raw.data,Manager,Queue.Type.Name,Case.ID,Fiscal.Week,CSAT,Customer.Comments,Manager.RCA,Manager.Comments) %>%
+  filter(grepl("P05|P04",Fiscal.Week),
+         grepl("3|4|5", CSAT),
+         grepl("<NEWLINECHAR>",Manager.Comments),
+         !is.na(Customer.Comments)) %>% 
+  sample_n(10) %>%
+  mutate(Manager.Comments = gsub("<NEWLINECHAR>","\n",Manager.Comments, perl = T),
+         #Manager.Comments = gsub("\r","\n",Manager.Comments,perl = T), # change \r to \n
+         Manager.Comments = gsub("\n(?=\n[[:alpha:]])|\n(?=\n[^[:alpha:]])","",Manager.Comments,perl = T),
+         Manager.RCA = gsub("-|\\/--\\/","",Manager.RCA)) %>%
+  write.csv2(.,"DSAT Calibration.csv",row.names = F)
+  
+

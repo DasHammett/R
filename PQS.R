@@ -31,7 +31,7 @@ Attributes$Tools <- select(Raw.MMIK, Tools:Refunds) %>% select(-ncol(.)) %>% col
 Attributes$Refunds <- select(Raw.MMIK, Refunds:Consultations) %>% select(-ncol(.)) %>% colnames()
 Attributes$Consultations <- select(Raw.MMIK, Consultations:Ownership) %>% select(-ncol(.)) %>% colnames()
 Attributes$Ownership <- select(Raw.MMIK, Ownership:Compliance) %>% select(-ncol(.)) %>% colnames()
-Attributes$Compliance <- select(Raw.MMIK, Compliance:Was.the.issue.rPQesolved.during.the.interaction) %>% select(-ncol(.)) %>% colnames()
+Attributes$Compliance <- select(Raw.MMIK, Compliance:Was.the.issue.resolved.during.the.interaction) %>% select(-ncol(.)) %>% colnames()
 Attributes$Attributes <- names(Attributes)
 T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
@@ -53,8 +53,9 @@ Raw.MMIK %>%
   group_by(Quarter) %>% 
   summarise(Adoption = mean(Adoption))
 
+
 data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, advisor, number = 6, from, to,...) {
-  Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Evaluator Directed")
+  #Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Evaluator Directed")
   Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Calibration")
   quo_timeframe <- enquo(timeframe)
   adv <- substitute(advisor)
@@ -74,7 +75,7 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
       from <- grep(substitute(from),Raw.MMIK$Fiscal.Week, value = T)[1]
       to <- grep(substitute(to),Raw.MMIK$Fiscal.Week, value = T)[1]
       Raw.MMIK <- Raw.MMIK %>%
-        filter(Fiscal.Week >= from & Fiscal.Week <= to) %>% filter(Fiscal.Week %in% tail(sort(unique(!!timefr)),number))
+        filter(Fiscal.Week >= from & Fiscal.Week <= to) #%>% filter(Fiscal.Week %in% tail(sort(unique(!!timefr)),number))
     } else {    Raw.MMIK <- Raw.MMIK %>% 
       filter(Fiscal.Week %in% tail(sort(unique(!!timefr)),number))
     }
@@ -126,7 +127,7 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
     return(return_list)
 }
 
-PQS <- function(chart,lob,...) {
+PQS <- function(chart = F,lob,margin = F,...) {
   a <- data_preparation(lob,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
@@ -137,11 +138,23 @@ PQS <- function(chart,lob,...) {
     mutate_at(vars(1:length(.data)),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
     mutate(N = n()) %>%
     summarise_all(first)
-  if(missing(chart)){
+  if(chart == F){
     Table_melt <- Table %>%
       select(!!timefr,ACC:N) %>%
       melt(id.vars=1) %>%
+      #gather(Attribute,value,-1) %>%
       spread(!!timefr,value) 
+    if(margin == T){
+      Table_melt <- bind_cols(
+        Table_melt,
+        Table %>% 
+          mutate(SumN = sum(N)) %>% 
+          summarise_at(vars(ACC:Compliance,SumN),funs(Avg = weighted.mean(.,N,na.rm = T))) %>% 
+          melt() %>% 
+          select(-1)
+      ) %>%
+        rename(Avg = value)
+    }
     if(!missing(lob)){
      colnames(Table_melt)[1] <- lob
    }
@@ -181,7 +194,7 @@ Drivers <- function(attribute,lob,...) {
       group_by(!!timefr) %>%
       filter(Advisor.Staff.Type == lob) %>%
       mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
-      mutate_at(vars(-1,-Errors),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
+      mutate_at(vars(-1,-Errors),funs(sum(. == "Driver", na.rm = T))) %>%
       summarise_all(first) %>%
       select(-2:-3) %>%
       melt() %>%
@@ -199,7 +212,7 @@ Drivers <- function(attribute,lob,...) {
       select(-2) %>%
       melt() %>%
       spread(!!timefr,value) %>%
-      mutate(N = rowSums(.[2:ncol(.)]))
+      mutate(N = rowSums(.[-1]))
   }
 }
 
@@ -260,7 +273,7 @@ Delta <- function(attribute,lob,...) {
 
 Outliers <- function(attribute, lob, rows, ...){
   att <- enquo(attribute)
-  a <- data_preparation(lob,...)
+  a <- data_preparation(lob,random = F,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   if(missing(attribute)) {
@@ -275,6 +288,7 @@ Outliers <- function(attribute, lob, rows, ...){
       spread(!!timefr,N) %>%
       ungroup() %>%
       mutate(N = rowSums(.[3:ncol(.)], na.rm = T)) %>%
+      filter(N != 0) %>%
       arrange(desc(N))
   } else {
     Table <- Raw.MMIK %>%
@@ -286,12 +300,13 @@ Outliers <- function(attribute, lob, rows, ...){
       spread(!!timefr,!!att) %>%
       ungroup() %>%
       mutate(N = rowSums(.[3:ncol(.)], na.rm = T)) %>%
+      filter(N != 0) %>%
       arrange(desc(N))
   }
   if(!missing(rows)) {
     Table <- Table[1:rows,]
   }
-  return(Table)
+  return(as.data.frame(Table))
 }
 
 ### AHT Delta ###
@@ -302,6 +317,12 @@ Raw.MMIK %>%
   dcast(Period~Call.Monitor.Type) %>% 
   mutate(Delta = Random - `IQE Review`)
 
+Raw.MMIK %>% 
+  filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>% 
+  group_by(Fiscal.Week,Call.Monitor.Type) %>% 
+  summarise(AHT = mean(Call.Duration, na.rm = T)) %>% 
+  dcast(Fiscal.Week~Call.Monitor.Type) %>% 
+  mutate(Delta = Random - `IQE Review`)
 
 Raw.MMIK %>%
   filter(Call.Monitor.Type != "IQE Review") %>%
@@ -309,3 +330,11 @@ Raw.MMIK %>%
   count(Advisor) %>%
   dcast(Advisor~Period, value.var = "n") %>% 
   filter(!is.na(rowSums(.[c(ncol(.),ncol(.)-1)])))
+
+
+### Compiance outliers ###
+Raw.MMIK %>%
+  filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),6),
+         Before.initiating.screen.sharing.the.Advisor.did.not.review.the.required.privacy.disclaimers.with.the.customer == "Driver") %>%
+  select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>%
+  arrange(Advisor.Staff.Type,Advisor)
