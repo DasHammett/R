@@ -7,6 +7,8 @@ library(tidyr)
 library(scales)
 library(stringr)
 Raw.MMIK <- read.csv2(file.choose(),header = T,stringsAsFactors = F) #Load PQS_BVHQ_MMIK.csv
+#Raw.MMIK <- load_excel(file.choose(), sheet = "Phone Quality Standard")
+colnames(Raw.MMIK)[1] <- "Fiscal.Week"
 colnames(Raw.MMIK) <- gsub(0,"no",names(Raw.MMIK))
 colnames(Raw.MMIK) <- gsub("^.*\\.{3}|\\.$","",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.names(names(Raw.MMIK),unique = T)
@@ -40,18 +42,19 @@ lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA
 
 # Quarterly adoption
 Raw.MMIK %>%
-  select(Fiscal.Week,Attribute) %>%
-  filter(Call.Monitor.Type == "Random") %>%
+  select(Fiscal.Week,Attributes$Attributes,Call.Monitor.Type) %>%
+  filter(Call.Monitor.Type == "IQE Review") %>%
+  #filter(!grepl("Calibration|IQE", Call.Monitor.Type)) %>%
   mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
          Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
                              grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
                              grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
                              grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
   select(Period,Quarter,everything()) %>%
-  mutate_at(vars(5:ncol(.)),funs(as.numeric)) %>%
-  mutate(Adoption = rowMeans(.[5:ncol(.)],na.rm = T)) %>%
+  mutate_at(vars(-1:-4),funs(as.numeric)) %>%
+  mutate(Adoption = rowMeans(.[-1:-4],na.rm = T)) %>%
   group_by(Quarter) %>% 
-  summarise(Adoption = mean(Adoption))
+  summarise(Adoption = mean(Adoption), N = n())
 
 
 data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, advisor, number = 6, from, to,...) {
@@ -223,7 +226,7 @@ IQE.Delta <- function(T2 = T,lob,...) {
   if(T2 == F){
     Raw.MMIK <- filter(Raw.MMIK,!grepl("Tier 2",Advisor.Staff.Type))
   }
-  Raw.MMIK %>%
+  Attribute_delta <- Raw.MMIK %>%
     select(!!timefr,Monitor.Method,Call.Monitor.Type,Attributes$Attributes) %>%
     filter(grepl("Random|IQE Review",Call.Monitor.Type),
            Monitor.Method != "Incube") %>%
@@ -232,11 +235,22 @@ IQE.Delta <- function(T2 = T,lob,...) {
     group_by(!!timefr) %>%
     summarise_at(vars(3:(length(.data)-1)),funs((sum(.[IQE == 1] == 1,na.rm = T)/(sum(!is.na(.[IQE == 1]))))-
                                                 (sum(.[IQE == 0] == 1,na.rm = T)/(sum(!is.na(.[IQE == 0])))))) %>%
-    mutate(Delta = select(.,-(!!timefr)) %>% rowMeans(na.rm = T)) %>% 
-    #mutate(Delta = select(.,-(!!timefr),-Holds) %>% rowMeans(na.rm = T)) %>% 
     melt() %>%
     mutate(value = round(value,4)) %>%
     spread(!!timefr,value)
+  Overall_delta <- Raw.MMIK %>%
+    select(!!timefr,Monitor.Method,Call.Monitor.Type,Attributes$Attributes) %>%
+    filter(grepl("Random|IQE Review",Call.Monitor.Type),
+           Monitor.Method != "Incube") %>%
+    mutate_at(vars(4:length(.data)),funs(as.numeric)) %>%
+    mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
+    gather(variable,var,-1:-3,-IQE) %>% group_by(!!timefr) %>% 
+    summarise(Overall.Delta = mean(var[IQE == 1],na.rm = T) - mean(var[IQE == 0],na.rm = T)) %>% 
+    spread(!!timefr,Overall.Delta)
+  Delta <- bind_rows(Attribute_delta,Overall_delta) %>% 
+    mutate(variable = as.character(variable)) %>% 
+    replace_na(list(variable = "Overall.Delta"))
+  return(Delta)
 }
 
 Delta <- function(attribute,lob,...) {
@@ -311,11 +325,43 @@ Outliers <- function(attribute, lob, rows, ...){
 
 ### AHT Delta ###
 Raw.MMIK %>% 
-  filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>% 
-  group_by(Period,Call.Monitor.Type) %>% 
+  filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
+  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
+         Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
+                             grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
+                             grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
+                             grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
+  select(Period,Quarter,everything()) %>%
+  group_by(Quarter,Call.Monitor.Type) %>% 
   summarise(AHT = mean(Call.Duration, na.rm = T)) %>% 
-  dcast(Period~Call.Monitor.Type) %>% 
+  dcast(Quarter~Call.Monitor.Type) %>% 
   mutate(Delta = Random - `IQE Review`)
+
+Raw.MMIK %>% 
+  filter(!grepl("Random|Business|IQE", Call.Monitor.Type)) %>%
+  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
+         Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
+                             grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
+                             grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
+                             grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
+  select(Period,Quarter,everything()) %>%
+  filter(Quarter == "2018Q3") %>%
+  group_by(Fiscal.Week) %>%
+  summarise(N = n(), Period = N/length(Call.Monitor.Type[.$Period == "2018P07"]))
+
+
+Raw.MMIK %>%
+  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
+         Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
+                             grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
+                             grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
+                             grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
+  filter(Call.Monitor.Type != "IQE Review",Quarter == "2018Q3") %>%
+  group_by(Period) %>%
+  summarise(Standalone = length(UUID[.$UUID == "n/a" | .$UUID == "N/A"])/length(UUID))
+  
+         
+
 
 Raw.MMIK %>% 
   filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>% 
@@ -334,7 +380,7 @@ Raw.MMIK %>%
 
 ### Compiance outliers ###
 Raw.MMIK %>%
-  filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),6),
-         Before.initiating.screen.sharing.the.Advisor.did.not.review.the.required.privacy.disclaimers.with.the.customer == "Driver") %>%
-  select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>%
+  filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),1),
+         The.Advisor.inappropriately.shared.the.customer.s.name.phone.number.email.address.Apple.ID.or.physical.address == "Driver") %>%
+  select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>% 
   arrange(Advisor.Staff.Type,Advisor)
