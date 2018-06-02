@@ -138,7 +138,7 @@ PQS <- function(chart = F,lob,margin = F,...) {
   Table <- Raw.MMIK %>%
     select(!!timefr,ACC:AOC,Attributes$Attributes) %>%
     group_by(!!timefr) %>%
-    mutate_at(vars(1:length(.data)),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
+    mutate_at(vars(-1),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
     mutate(N = n()) %>%
     summarise_all(first)
   if(chart == F){
