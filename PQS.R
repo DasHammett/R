@@ -53,7 +53,7 @@ Raw.MMIK %>%
   select(Period,Quarter,everything()) %>%
   mutate_at(vars(-1:-4),funs(as.numeric)) %>%
   mutate(Adoption = rowMeans(.[-1:-4],na.rm = T)) %>%
-  group_by(Quarter) %>% 
+  group_by(Quarter) %>%
   summarise(Adoption = mean(Adoption), N = n())
 
 
@@ -66,7 +66,7 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
     regex <- paste0("\\b",adv,"\\b")
     Raw.MMIK <- Raw.MMIK %>% filter(grepl(regex,Advisor))
   }
-  if(incube == FALSE){ 
+  if(incube == FALSE){
     Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Announced")
   }
   if(random == TRUE){
@@ -79,7 +79,7 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
       to <- grep(substitute(to),Raw.MMIK$Fiscal.Week, value = T)[1]
       Raw.MMIK <- Raw.MMIK %>%
         filter(Fiscal.Week >= from & Fiscal.Week <= to) #%>% filter(Fiscal.Week %in% tail(sort(unique(!!timefr)),number))
-    } else {    Raw.MMIK <- Raw.MMIK %>% 
+    } else {    Raw.MMIK <- Raw.MMIK %>%
       filter(Fiscal.Week %in% tail(sort(unique(!!timefr)),number))
     }
   }
@@ -96,7 +96,7 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
   }
   if(quo_timeframe == "~quarter"){
     timefr <- quo(Quarter)
-    Raw.MMIK <- 
+    Raw.MMIK <-
       Raw.MMIK %>%
       mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
              Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
@@ -146,14 +146,15 @@ PQS <- function(chart = F,lob,margin = F,...) {
       select(!!timefr,ACC:N) %>%
       melt(id.vars=1) %>%
       #gather(Attribute,value,-1) %>%
-      spread(!!timefr,value) 
+      spread(!!timefr,value) %>%
+      rename(Attribute = variable)
     if(margin == T){
       Table_melt <- bind_cols(
         Table_melt,
-        Table %>% 
-          mutate(SumN = sum(N)) %>% 
-          summarise_at(vars(ACC:Compliance,SumN),funs(Avg = weighted.mean(.,N,na.rm = T))) %>% 
-          melt() %>% 
+        Table %>%
+          mutate(SumN = sum(N)) %>%
+          summarise_at(vars(ACC:Compliance,SumN),funs(Avg = weighted.mean(.,N,na.rm = T))) %>%
+          melt() %>%
           select(-1)
       ) %>%
         rename(Avg = value)
@@ -164,7 +165,7 @@ PQS <- function(chart = F,lob,margin = F,...) {
     return(Table_melt)
   }
   if(chart == T){
-    Table %>% 
+    Table %>%
       gather(variable,value,-(!!timefr),-N) %>%
       mutate(N = if_else(variable %in% c("ACC","ABC","ARC","AOC"),N,as.integer(NA))) %>% #Keep N in top facets only
       mutate(!!quo_name(timefr) := gsub("^[[:digit:]]{4}","",!!timefr),
@@ -186,17 +187,17 @@ PQS <- function(chart = F,lob,margin = F,...) {
 Drivers <- function(attribute,lob,...) {
   atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
-  attribute <- get(atts,Attributes) 
+  attribute <- get(atts,Attributes)
   a <- data_preparation(lob,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   if(!missing(lob)){
-    Table <- 
+    Table <-
       Raw.MMIK %>%
       select(!!timefr,Advisor.Staff.Type,attribute) %>%
       group_by(!!timefr) %>%
       filter(Advisor.Staff.Type == lob) %>%
-      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
+      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>%
       mutate_at(vars(-1,-Errors),funs(sum(. == "Driver", na.rm = T))) %>%
       summarise_all(first) %>%
       select(-2:-3) %>%
@@ -209,7 +210,7 @@ Drivers <- function(attribute,lob,...) {
     Raw.MMIK %>%
       select(!!timefr,attribute) %>%
       group_by(!!timefr) %>%
-      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
+      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>%
       mutate_at(vars(-1,-Errors),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
       summarise_all(first) %>%
       select(-2) %>%
@@ -244,11 +245,11 @@ IQE.Delta <- function(T2 = T,lob,...) {
            Monitor.Method != "Incube") %>%
     mutate_at(vars(4:length(.data)),funs(as.numeric)) %>%
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
-    gather(variable,var,-1:-3,-IQE) %>% group_by(!!timefr) %>% 
-    summarise(Overall.Delta = mean(var[IQE == 1],na.rm = T) - mean(var[IQE == 0],na.rm = T)) %>% 
+    gather(variable,var,-1:-3,-IQE) %>% group_by(!!timefr) %>%
+    summarise(Overall.Delta = mean(var[IQE == 1],na.rm = T) - mean(var[IQE == 0],na.rm = T)) %>%
     spread(!!timefr,Overall.Delta)
-  Delta <- bind_rows(Attribute_delta,Overall_delta) %>% 
-    mutate(variable = as.character(variable)) %>% 
+  Delta <- bind_rows(Attribute_delta,Overall_delta) %>%
+    mutate(variable = as.character(variable)) %>%
     replace_na(list(variable = "Overall.Delta"))
   return(Delta)
 }
@@ -256,7 +257,7 @@ IQE.Delta <- function(T2 = T,lob,...) {
 Delta <- function(attribute,lob,...) {
   atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
-  attribute <- get(atts,Attributes) 
+  attribute <- get(atts,Attributes)
   a <- data_preparation(...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
@@ -324,7 +325,7 @@ Outliers <- function(attribute, lob, rows, ...){
 }
 
 ### AHT Delta ###
-Raw.MMIK %>% 
+Raw.MMIK %>%
   filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
   mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
          Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
@@ -332,12 +333,12 @@ Raw.MMIK %>%
                              grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
                              grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
   select(Period,Quarter,everything()) %>%
-  group_by(Quarter,Call.Monitor.Type) %>% 
-  summarise(AHT = mean(Call.Duration, na.rm = T)) %>% 
-  dcast(Quarter~Call.Monitor.Type) %>% 
+  group_by(Quarter,Call.Monitor.Type) %>%
+  summarise(AHT = mean(Call.Duration, na.rm = T)) %>%
+  dcast(Quarter~Call.Monitor.Type) %>%
   mutate(Delta = Random - `IQE Review`)
 
-Raw.MMIK %>% 
+Raw.MMIK %>%
   filter(!grepl("Random|Business|IQE", Call.Monitor.Type)) %>%
   mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
          Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
@@ -359,22 +360,22 @@ Raw.MMIK %>%
   filter(Call.Monitor.Type != "IQE Review",Quarter == "2018Q3") %>%
   group_by(Period) %>%
   summarise(Standalone = length(UUID[.$UUID == "n/a" | .$UUID == "N/A"])/length(UUID))
-  
-         
 
 
-Raw.MMIK %>% 
-  filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>% 
-  group_by(Fiscal.Week,Call.Monitor.Type) %>% 
-  summarise(AHT = mean(Call.Duration, na.rm = T)) %>% 
-  dcast(Fiscal.Week~Call.Monitor.Type) %>% 
+
+
+Raw.MMIK %>%
+  filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
+  group_by(Fiscal.Week,Call.Monitor.Type) %>%
+  summarise(AHT = mean(Call.Duration, na.rm = T)) %>%
+  dcast(Fiscal.Week~Call.Monitor.Type) %>%
   mutate(Delta = Random - `IQE Review`)
 
 Raw.MMIK %>%
   filter(Call.Monitor.Type != "IQE Review") %>%
   group_by(Period) %>%
   count(Advisor) %>%
-  dcast(Advisor~Period, value.var = "n") %>% 
+  dcast(Advisor~Period, value.var = "n") %>%
   filter(!is.na(rowSums(.[c(ncol(.),ncol(.)-1)])))
 
 
@@ -382,5 +383,5 @@ Raw.MMIK %>%
 Raw.MMIK %>%
   filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),1),
          The.Advisor.inappropriately.shared.the.customer.s.name.phone.number.email.address.Apple.ID.or.physical.address == "Driver") %>%
-  select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>% 
+  select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>%
   arrange(Advisor.Staff.Type,Advisor)
