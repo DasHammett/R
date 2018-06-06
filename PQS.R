@@ -39,6 +39,7 @@ T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
 Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
+PQSDF <- sapply(Attributes,function(x) data.frame(Attribute = as.character(x[1]), Drivers = as.character(x[-1])),simplify = F) %>% bind_rows() %>% slice(-144:-nrow(.)) %>% as.data.frame()
 
 # Quarterly adoption
 Raw.MMIK %>%
@@ -186,37 +187,31 @@ PQS <- function(chart = F,lob,margin = F,...) {
 Drivers <- function(attribute,lob,...) {
   atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
-  attribute <- get(atts,Attributes) 
+  attribute <- get(atts,Attributes)
   a <- data_preparation(lob,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   if(!missing(lob)){
     Table <- 
       Raw.MMIK %>%
-      select(!!timefr,Advisor.Staff.Type,attribute) %>%
-      group_by(!!timefr) %>%
-      filter(Advisor.Staff.Type == lob) %>%
-      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
-      mutate_at(vars(-1,-Errors),funs(sum(. == "Driver", na.rm = T))) %>%
-      summarise_all(first) %>%
-      select(-2:-3) %>%
-      melt() %>%
-      spread(!!timefr,value) %>%
-      mutate(N = rowSums(.[-1]))
-    names(Table)[1] <- lob
-    return(Table)
+      select(!!timefr,Advisor.Staff.Type,attribute) %>% 
+      filter(Advisor.Staff.Type == lob)
   } else {
-    Raw.MMIK %>%
-      select(!!timefr,attribute) %>%
-      group_by(!!timefr) %>%
-      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
-      mutate_at(vars(-1,-Errors),funs(round(sum(. == "Driver", na.rm = T),2))) %>%
-      summarise_all(first) %>%
-      select(-2) %>%
-      melt() %>%
-      spread(!!timefr,value) %>%
-      mutate(N = rowSums(.[-1]))
+    Table <- Raw.MMIK %>%
+      select(!!timefr,attribute)
+    lob <- "All LOBs"
   }
+  Table <- Table %>%
+    group_by(!!timefr) %>%
+    mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
+    mutate_at(vars(-1,-Errors),funs(sum(. == "Driver", na.rm = T))) %>%
+    summarise_all(first) %>%
+    select(-2:-3) %>%
+    melt() %>%
+    spread(!!timefr,value) %>%
+    mutate(N = rowSums(.[-1]))
+  colnames(Table)[1] <- paste("Drivers - ",lob,sep="")
+  return(Table)
 }
 
 IQE.Delta <- function(T2 = T,lob,...) {
@@ -356,15 +351,16 @@ Component2 <- function(attribute,lob,issue,driver,...){
     select(!!timefr,Advisor.Staff.Type,attribute,Component,Issue,Reason) %>%
     mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
     select(-(!!att),Advisor.Staff.Type,-Component:-Reason) %>%
-    melt(id.vars=c((!!timefr),"Issue_Reason","Advisor.Staff.Type")) %>%
+    gather(variable,value,-(!!timefr),-Issue_Reason,-Advisor.Staff.Type) %>%
     group_by(!!timefr,variable,Issue_Reason,Advisor.Staff.Type) %>%
     summarise(N = sum(value == "Driver")) %>%
-    dcast(variable+Issue_Reason+Advisor.Staff.Type~Fiscal.Week) %>%
+    spread(!!timefr,variable+Issue_Reason) %>%
+    ungroup() %>%
     mutate(N = rowSums(.[-1:-3],na.rm = T)) %>%
     filter(N > 0) %>%
     arrange(variable,desc(N))
   if(!missing(lob)){
-    Table <- Table %>% filter(Advisor.Staff.Type == lob) %>% select(-Advisor.Staff.Type)
+    Table <- Table %>% filter(Advisor.Staff.Type == lob) %>% select(-Advisor.Staff.Type) %>% as.data.frame()
     colnames(Table)[1] <- lob
   }
   else{
@@ -373,7 +369,7 @@ Component2 <- function(attribute,lob,issue,driver,...){
       mutate_at(vars(-1:-2),funs(sum(.,na.rm = T))) %>%
       summarise_all(first) %>%
       select(-Advisor.Staff.Type) %>%
-      arrange(variable,desc(N)) %>%
+      arrange(desc(N)) %>%
       as.data.frame()
   }
   Table <- filter(Table,Issue_Reason != "")
@@ -390,18 +386,90 @@ Component2 <- function(attribute,lob,issue,driver,...){
   return(Table)
 }
 
-Raw.MMIK %>%
-  select(Fiscal.Week,Attributes$Knowledge,Component,Issue,Reason) %>%
-  filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),6)) %>%
-  mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
-  select(-Knowledge,-Component:-Reason) %>%
-  melt(id.vars=c("Fiscal.Week","Issue_Reason")) %>%
-  group_by(Fiscal.Week,variable,Issue_Reason) %>%
-  summarise(N = sum(value == "Driver")) %>%
-  dcast(variable+Issue_Reason~Fiscal.Week) %>%
-  mutate(N = rowSums(.[-1:-2],na.rm = T)) %>%
-  filter(N > 0) %>%
-  arrange(variable,desc(N))
+Issue <- function(issue,lob,...){
+  issue <- substitute(issue)
+  regex <- paste0("\\b",issue,"\\b")
+  a <- data_preparation(lob,...)
+  Raw.MMIK <- a[[2]]
+  timefr <- a[[1]]
+  Table <- Raw.MMIK %>%
+    mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
+    select(!!timefr,Issue_Reason,everything()) %>%
+    gather(variable,value,-(!!timefr):-Exceptional.Support) %>%
+    filter(value == "Driver",grepl(regex,Issue_Reason)) %>%
+    group_by(!!timefr,Issue_Reason,Advisor.Staff.Type) %>%
+    count(variable) %>%
+    spread(!!timefr,n) %>%
+    ungroup() %>%
+    mutate(N = rowSums(.[-1:-3],na.rm = T)) %>%
+    arrange(desc(N))
+  if(!missing(lob)){
+    Table <- Table %>% filter(Advisor.Staff.Type == lob) %>% select(-Advisor.Staff.Type) %>% as.data.frame()
+    colnames(Table)[1] <- lob 
+  }
+  else {
+    Table <- Table %>% 
+      group_by(variable,Issue_Reason) %>%
+      mutate_at(vars(-1:-2),funs(sum(.,na.rm = T))) %>%
+      summarise_all(first) %>%
+      select(-Advisor.Staff.Type) %>%
+      arrange(Issue_Reason,desc(N)) %>%
+      as.data.frame()
+  }
+    Table <- inner_join(Table,PQSDF,by = c("variable" = "Drivers")) %>%
+      select(Attribute, everything())
+    return(Table)
+}
+
+
+Drivers2 <- function(attribute,lob,issue,...) {
+  atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
+  att <- enquo(attribute)
+  attribute <- get(atts,Attributes)
+  a <- data_preparation(lob,...)
+  Raw.MMIK <- a[[2]]
+  timefr <- a[[1]]
+  if(!missing(lob)){
+    Table <- 
+      Raw.MMIK %>%
+      select(!!timefr,Advisor.Staff.Type,attribute,Issue,Reason) %>% 
+      filter(Advisor.Staff.Type == lob)
+  } else {
+    Table <- Raw.MMIK %>%
+      select(!!timefr,attribute,Issue,Reason)
+    lob <- "All LOBs"
+  }
+  if(!missing(issue)) {
+    issue <- substitute(issue)
+    regex <- paste0("\\b",issue,"\\b")
+    Table <- Table %>%
+      mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
+      select(!!timefr,Issue_Reason,everything(),-(!!att),-Issue,-Reason) %>%
+      filter(grepl(regex,Issue_Reason)) %>%
+      gather(variable,value,-(!!timefr):-Issue_Reason) %>% 
+      group_by(!!timefr,variable,Issue_Reason) %>% 
+      summarise(N = sum(value == "Driver")) %>% 
+      spread(!!timefr,N) %>%
+      ungroup() %>%
+      mutate(N = rowSums(.[-1:-2],na.rm = T)) %>%
+      filter(N > 0) %>%
+      arrange(Issue_Reason,desc(N)) %>%
+      as.data.frame()
+    colnames(Table)[1] <- paste("Drivers -",lob,sep=" ")
+    return(Table)
+  }
+  Table <- Table %>%
+      group_by(!!timefr) %>%
+      mutate(Errors = sum((!!att) == 0, na.rm = T)) %>% 
+      mutate_at(vars(-1,-Errors),funs(sum(. == "Driver", na.rm = T))) %>%
+      summarise_all(first) %>%
+      select(-2:-3,-Issue,-Reason) %>%
+      melt() %>%
+      spread(!!timefr,value) %>%
+      mutate(N = rowSums(.[-1]))
+  colnames(Table)[1] <- paste("Drivers - ",lob,sep="")
+    return(Table)
+}
 
 
 
@@ -472,3 +540,6 @@ Raw.MMIK %>%
          The.Advisor.inappropriately.shared.the.customer.s.name.phone.number.email.address.Apple.ID.or.physical.address == "Driver") %>%
   select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>% 
   arrange(Advisor.Staff.Type,Advisor)
+
+test <- sapply(Attributes,function(x) data.frame(Attribute = x[1], Drivers = x[-1]), simplify = F) %>% bind_rows() %>% slice(-144:-nrow(.)) %>% as.data.frame()
+
