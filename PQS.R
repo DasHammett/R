@@ -1,11 +1,9 @@
-HC now and HC Q1 for ios and mac
-
-
 library(reshape2)
 library(magrittr)
 library(tidyr)
 library(scales)
 library(stringr)
+library(purrr)
 Raw.MMIK <- read.csv2(file.choose(),header = T,stringsAsFactors = F) #Load PQS_BVHQ_MMIK.csv
 #Raw.MMIK <- load_excel(file.choose(), sheet = "Phone Quality Standard")
 colnames(Raw.MMIK)[1] <- "Fiscal.Week"
@@ -13,33 +11,34 @@ colnames(Raw.MMIK) <- gsub(0,"no",names(Raw.MMIK))
 colnames(Raw.MMIK) <- gsub("^.*\\.{3}|\\.$","",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.names(names(Raw.MMIK),unique = T)
 Raw.MMIK <- filter(Raw.MMIK,grepl("Barcelona",Advisor.Site),
-                   #Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),6),
-                   Call.Monitor.Type != "Calibration",
-                   !grepl("2016|2017P01|2017P02|2017P03|2017P04|2017P05|2017P06",Fiscal.Week))
+                   Call.Monitor.Type != "Calibration")
 colnames(Raw.MMIK) <- gsub("\\.{2}","\\.",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.unique(colnames(Raw.MMIK))
 Raw.MMIK$Call.Duration <- sapply(strsplit(Raw.MMIK$Call.Duration,":"), function(x)as.numeric(x[1])*60+as.numeric(x[2])+as.numeric(x[3])/60) #Convert time to decimal
 Raw.MMIK$Period <- str_extract(Raw.MMIK$Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}")
 
 Attributes <- list()
-Attributes$Assure <- select(Raw.MMIK, Assure:Knowledge) %>% select(-ncol(.)) %>% colnames()
-Attributes$Knowledge <- select(Raw.MMIK, Knowledge:Guidance) %>% select(-ncol(.)) %>% colnames()
-Attributes$Guidance <- select(Raw.MMIK, Guidance:Professionalism) %>% select(-ncol(.)) %>% colnames()
-Attributes$Professionalism <- select(Raw.MMIK, Professionalism:Holds) %>% select(-ncol(.)) %>% colnames()
-Attributes$Holds <- select(Raw.MMIK, Holds:Case.Duration) %>% select(-ncol(.)) %>% colnames()
-Attributes$Case.Duration <- select(Raw.MMIK, Case.Duration:Logging) %>% select(-ncol(.)) %>% colnames()
-Attributes$Logging <- select(Raw.MMIK, Logging:Tools) %>% select(-ncol(.)) %>% colnames()
-Attributes$Tools <- select(Raw.MMIK, Tools:Refunds) %>% select(-ncol(.)) %>% colnames()
-Attributes$Refunds <- select(Raw.MMIK, Refunds:Consultations) %>% select(-ncol(.)) %>% colnames()
-Attributes$Consultations <- select(Raw.MMIK, Consultations:Ownership) %>% select(-ncol(.)) %>% colnames()
-Attributes$Ownership <- select(Raw.MMIK, Ownership:Compliance) %>% select(-ncol(.)) %>% colnames()
-Attributes$Compliance <- select(Raw.MMIK, Compliance:Was.the.issue.resolved.during.the.interaction) %>% select(-ncol(.)) %>% colnames()
+Attributes$Assure <- select(Raw.MMIK, Assure:(Knowledge-1))
+Attributes$Knowledge <- select(Raw.MMIK, Knowledge:(Guidance-1))
+Attributes$Guidance <- select(Raw.MMIK, Guidance:(Professionalism-1))
+Attributes$Professionalism <- select(Raw.MMIK, Professionalism:(Holds-1))
+Attributes$Holds <- select(Raw.MMIK, Holds:(Case.Duration-1))
+Attributes$Case.Duration <- select(Raw.MMIK, Case.Duration:(Logging-1))
+Attributes$Logging <- select(Raw.MMIK, Logging:(Tools-1))
+Attributes$Tools <- select(Raw.MMIK, Tools:(Refunds-1))
+Attributes$Refunds <- select(Raw.MMIK, Refunds:(Consultations-1))
+Attributes$Consultations <- select(Raw.MMIK, Consultations:(Ownership-1))
+Attributes$Ownership <- select(Raw.MMIK, Ownership:(Compliance-1))
+Attributes$Compliance <- select(Raw.MMIK, Compliance:(Was.the.issue.resolved.during.the.interaction-1))
+Attributes <- map(Attributes,colnames)
 Attributes$Attributes <- names(Attributes)
 T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
 Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
-PQSDF <- sapply(Attributes,function(x) data.frame(Attribute = as.character(x[1]), Drivers = as.character(x[-1])),simplify = F) %>% bind_rows() %>% slice(-144:-nrow(.)) %>% as.data.frame()
+PQSDF <- sapply(Attributes,function(x) data.frame(Attribute = as.character(x[1]), Drivers = as.character(x[-1])),simplify = F) %>% 
+  bind_rows() %>% 
+  filter(!Drivers %in% Attribute) %>% as.data.frame()
 
 # Quarterly adoption
 Raw.MMIK %>%
@@ -340,7 +339,7 @@ Component <- function(attribute,lob,...){
   return(Table)
 }
 
-Component2 <- function(attribute,lob,issue,driver,...){
+Component_Driver <- function(attribute,lob,issue,driver,...){
   atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
   attribute <- get(atts,Attributes)
@@ -540,6 +539,3 @@ Raw.MMIK %>%
          The.Advisor.inappropriately.shared.the.customer.s.name.phone.number.email.address.Apple.ID.or.physical.address == "Driver") %>%
   select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>% 
   arrange(Advisor.Staff.Type,Advisor)
-
-test <- sapply(Attributes,function(x) data.frame(Attribute = x[1], Drivers = x[-1]), simplify = F) %>% bind_rows() %>% slice(-144:-nrow(.)) %>% as.data.frame()
-
