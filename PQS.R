@@ -16,6 +16,10 @@ colnames(Raw.MMIK) <- gsub("\\.{2}","\\.",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.unique(colnames(Raw.MMIK))
 Raw.MMIK$Call.Duration <- sapply(strsplit(Raw.MMIK$Call.Duration,":"), function(x)as.numeric(x[1])*60+as.numeric(x[2])+as.numeric(x[3])/60) #Convert time to decimal
 Raw.MMIK$Period <- str_extract(Raw.MMIK$Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}")
+Raw.MMIK <- Raw.MMIK %>% mutate(Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
+                                                    grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
+                                                    grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
+                                                    grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4")))
 
 Attributes <- list()
 Attributes$Assure <- select(Raw.MMIK, Assure:(Knowledge-1))
@@ -36,20 +40,14 @@ T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
 Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
-PQSDF <- sapply(Attributes,function(x) data.frame(Attribute = as.character(x[1]), Drivers = as.character(x[-1])),simplify = F) %>% 
+PQSDF <- map(Attributes,~data.frame(Attribute = .x[1], Drivers = .x[-1])) %>% 
   bind_rows() %>% 
-  filter(!Drivers %in% Attribute) %>% as.data.frame()
+  filter(!Drivers %in% Attribute)
 
 # Quarterly adoption
 Raw.MMIK %>%
   select(Fiscal.Week,Attributes$Attributes,Call.Monitor.Type) %>%
   filter(Call.Monitor.Type == "IQE Review") %>%
-  #filter(!grepl("Calibration|IQE", Call.Monitor.Type)) %>%
-  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
-         Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
-                             grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
-                             grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
-                             grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
   select(Period,Quarter,everything()) %>%
   mutate_at(vars(-1:-4),funs(as.numeric)) %>%
   mutate(Adoption = rowMeans(.[-1:-4],na.rm = T)) %>%
@@ -98,11 +96,6 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
     timefr <- quo(Quarter)
     Raw.MMIK <- 
       Raw.MMIK %>%
-      mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
-             Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
-                                 grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
-                                 grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
-                                 grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
       select(Quarter,everything()) %>%
       select(-Period)
   }
@@ -475,11 +468,6 @@ Drivers2 <- function(attribute,lob,issue,...) {
 ### AHT Delta ###
 Raw.MMIK %>% 
   filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
-  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
-         Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
-                             grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
-                             grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
-                             grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
   select(Period,Quarter,everything()) %>%
   group_by(Quarter,Call.Monitor.Type) %>% 
   summarise(AHT = mean(Call.Duration, na.rm = T)) %>% 
@@ -488,29 +476,15 @@ Raw.MMIK %>%
 
 Raw.MMIK %>% 
   filter(!grepl("Random|Business|IQE", Call.Monitor.Type)) %>%
-  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
-         Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
-                             grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
-                             grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
-                             grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
   select(Period,Quarter,everything()) %>%
   filter(Quarter == "2018Q3") %>%
   group_by(Fiscal.Week) %>%
   summarise(N = n(), Period = N/length(Call.Monitor.Type[.$Period == "2018P07"]))
 
-
 Raw.MMIK %>%
-  mutate(Period = str_extract(Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}"),
-         Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
-                             grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
-                             grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
-                             grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4"))) %>%
   filter(Call.Monitor.Type != "IQE Review",Quarter == "2018Q3") %>%
   group_by(Period) %>%
   summarise(Standalone = length(UUID[.$UUID == "n/a" | .$UUID == "N/A"])/length(UUID))
-  
-         
-
 
 Raw.MMIK %>% 
   filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>% 
