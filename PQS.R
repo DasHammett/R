@@ -97,6 +97,7 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
     Raw.MMIK <- 
       Raw.MMIK %>%
       select(Quarter,everything()) %>%
+      filter(Quarter %in% tail(sort(unique(!!timefr)),number)) %>%
       select(-Period)
   }
   if(missing(lob)){
@@ -131,7 +132,7 @@ PQS <- function(chart = F,lob,margin = F,...) {
   Table <- Raw.MMIK %>%
     select(!!timefr,ACC:AOC,Attributes$Attributes) %>%
     group_by(!!timefr) %>%
-    mutate_at(vars(1:length(.data)),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
+    mutate_at(vars(-1),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
     mutate(N = n()) %>%
     summarise_all(first)
   if(chart == F){
@@ -160,9 +161,9 @@ PQS <- function(chart = F,lob,margin = F,...) {
     Table %>% 
       gather(variable,value,-(!!timefr),-N) %>%
       mutate(N = if_else(variable %in% c("ACC","ABC","ARC","AOC"),N,as.integer(NA))) %>% #Keep N in top facets only
-      mutate(!!quo_name(timefr) := gsub("^[[:digit:]]{4}","",!!timefr),
-             variable = factor(variable,variable),
-             !!quo_name(timefr) := factor(!!timefr,!!timefr)) %>%
+      mutate(!!quo_name(timefr) := if_else(grepl("Quarter",(!!timefr),gsub("^[[:digit:]]{4}","",!!timefr),gsub("^[[:digit:]]{2}","",!!timefr)),
+             variable = factor(variable,unique(variable)),
+             !!quo_name(timefr) := factor(!!timefr,unique(!!timefr))) %>%
       ggplot(.,aes_string(quo_name(timefr),"value"))+
       geom_line(aes(group = variable))+
       geom_point(shape=21,fill="white",size = 3)+
