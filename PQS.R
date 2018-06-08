@@ -149,7 +149,7 @@ PQS <- function(chart = F,lob,margin = F,...) {
           summarise_at(vars(ACC:Compliance,SumN),funs(Avg = weighted.mean(.,N,na.rm = T))) %>% 
           melt() %>% 
           select(-1)
-      ) %>%
+       ) %>%
         rename(Avg = value)
     }
     if(!missing(lob)){
@@ -161,7 +161,7 @@ PQS <- function(chart = F,lob,margin = F,...) {
     Table %>% 
       gather(variable,value,-(!!timefr),-N) %>%
       mutate(N = if_else(variable %in% c("ACC","ABC","ARC","AOC"),N,as.integer(NA))) %>% #Keep N in top facets only
-      mutate(!!quo_name(timefr) := if_else(grepl("Quarter",(!!timefr),gsub("^[[:digit:]]{4}","",!!timefr),gsub("^[[:digit:]]{2}","",!!timefr)),
+      mutate(!!quo_name(timefr) := if_else(!grepl("quarter",(!!timefr)),gsub("^[[:digit:]]{4}","",!!timefr),gsub("^[[:digit:]]{2}","",!!timefr)),
              variable = factor(variable,unique(variable)),
              !!quo_name(timefr) := factor(!!timefr,unique(!!timefr))) %>%
       ggplot(.,aes_string(quo_name(timefr),"value"))+
