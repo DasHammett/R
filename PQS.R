@@ -40,9 +40,6 @@ T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
 Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
-PQSDF <- map(Attributes,~data.frame(Attribute = .x[1], Drivers = .x[-1])) %>%
-  bind_rows() %>%
-  filter(!Drivers %in% Attribute)
 
 # Quarterly adoption
 Raw.MMIK %>%
@@ -381,6 +378,7 @@ Component_Driver <- function(attribute,lob,issue,driver,...){
 }
 
 Issue <- function(issue,lob,...){
+  PQSDF <- map(Attributes,~data.frame(Attribute = .x[1], Drivers = .x[-1])) %>% bind_rows() %>% filter(!Drivers %in% Attribute)
   issue <- substitute(issue)
   regex <- paste0("\\b",issue,"\\b")
   a <- data_preparation(lob,...)
@@ -404,7 +402,7 @@ Issue <- function(issue,lob,...){
   else {
     Table <- Table %>%
       group_by(variable,Issue_Reason) %>%
-      mutate_at(vars(-1:-2),funs(sum(.,na.rm = T))) %>%
+      mutate_at(vars(-1:-3),funs(sum(.,na.rm = T))) %>%
       summarise_all(first) %>%
       select(-Advisor.Staff.Type) %>%
       arrange(Issue_Reason,desc(N)) %>%
