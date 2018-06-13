@@ -19,7 +19,8 @@ Raw.MMIK$Period <- str_extract(Raw.MMIK$Fiscal.Week,"[[:digit:]]+P[[:digit:]]{2}
 Raw.MMIK <- Raw.MMIK %>% mutate(Quarter = case_when(grepl("P01|P02|P03",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q1"),
                                                     grepl("P04|P05|P06",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q2"),
                                                     grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
-                                                    grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4")))
+                                                    grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4")),
+                                Issue_Reason = if_else(Issue == "",Reason,Issue))
 
 Attributes <- list()
 Attributes$Assure <- select(Raw.MMIK, Assure:(Knowledge-1))
@@ -40,17 +41,6 @@ T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
 Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
-
-# Quarterly adoption
-Raw.MMIK %>%
-  select(Fiscal.Week,Attributes$Attributes,Call.Monitor.Type) %>%
-  filter(Call.Monitor.Type == "IQE Review") %>%
-  select(Period,Quarter,everything()) %>%
-  mutate_at(vars(-1:-4),funs(as.numeric)) %>%
-  mutate(Adoption = rowMeans(.[-1:-4],na.rm = T)) %>%
-  group_by(Period) %>%
-  summarise(Adoption = mean(Adoption), N = n())
-
 
 data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, advisor, number = 6, from, to,...) {
   #Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Evaluator Directed")
@@ -129,7 +119,8 @@ PQS <- function(chart = F,lob,margin = F,...) {
   Table <- Raw.MMIK %>%
     select(!!timefr,ACC:AOC,Attributes$Attributes) %>%
     group_by(!!timefr) %>%
-    mutate_at(vars(-1),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
+    #mutate_at(vars(-1),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
+    mutate_all(funs(sum(. == 1, na.rm = T)/sum(. != "N/A",na.rm = T))) %>%
     mutate(N = n()) %>%
     summarise_all(first)
   if(chart == F){
@@ -167,7 +158,7 @@ PQS <- function(chart = F,lob,margin = F,...) {
       geom_point(shape=21,fill="white",size = 3)+
       geom_text(aes_string(label = "percent(round(value,2))",x = quo_name(timefr),y="value"),vjust = -1,size=4)+
       geom_text(aes_string(label = "N", x = quo_name(timefr), y = "-Inf"),vjust = -1,size=3)+
-      scale_y_continuous(expand = c(0.1,0.05),label = percent)+
+      scale_y_continuous(expand = c(0.1,0.05),label = percent,breaks = seq(0,1,by=0.2))+
       theme(legend.position = "none",
             strip.text.x = element_text(size = 12))+
       facet_wrap(~variable,ncol = 4)+
@@ -320,8 +311,8 @@ Component <- function(attribute,lob,...){
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   Table <- Raw.MMIK %>%
-    select(!!timefr,attribute,Component,Issue,Reason) %>%
-    mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
+    select(!!timefr,attribute,Component,Issue_Reason) %>%
+ #   mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
     group_by(!!timefr) %>%
     filter((!!att) == 0) %>%
     count(Component,Issue_Reason) %>%
@@ -413,7 +404,6 @@ Issue <- function(issue,lob,...){
     return(Table)
 }
 
-
 Drivers2 <- function(attribute,lob,issue,...) {
   atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
   att <- enquo(attribute)
@@ -464,14 +454,29 @@ Drivers2 <- function(attribute,lob,issue,...) {
 }
 
 
+# Quarterly adoption
+Raw.MMIK %>%
+  select(Attributes$Attributes,Call.Monitor.Type,Period,Quarter) %>%
+  filter(Call.Monitor.Type == "IQE Review") %>%
+  select(Period,Quarter,everything()) %>%
+  mutate_at(vars(-1:-4),funs(as.numeric)) %>%
+  mutate(Adoption = rowMeans(.[-1:-4],na.rm = T)) %>%
+  group_by(Period) %>%
+  summarise(Adoption = mean(Adoption), N = n()) %>%
+  arrange(Adoption) %>% 
+  #mutate(Period = factor(Period, Period)) %>%
+  ggplot(.,aes(Period, Adoption,label = paste0(round(Adoption,2)*100,"%")))+
+  geom_segment(aes(y = 0.7, yend = Adoption, x = Period, xend = Period),color = "grey50")+
+  geom_point(size = 12, shape = 21, fill = "white")+
+  geom_text()
 
 ### AHT Delta ###
 Raw.MMIK %>%
   filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
   select(Period,Quarter,everything()) %>%
-  group_by(Quarter,Call.Monitor.Type) %>%
+  group_by(Period,Call.Monitor.Type) %>%
   summarise(AHT = mean(Call.Duration, na.rm = T)) %>%
-  dcast(Quarter~Call.Monitor.Type) %>%
+  dcast(Period~Call.Monitor.Type) %>%
   mutate(Delta = Random - `IQE Review`)
 
 Raw.MMIK %>%
@@ -510,6 +515,13 @@ Raw.MMIK %>%
 
 Raw.MMIK %>%
   filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),1),
+         Before.initiating.screen.sharing.the.Advisor.did.not.review.the.required.privacy.disclaimers.with.the.customer == "Driver") %>%
+  select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>%
+  arrange(Advisor.Staff.Type,Advisor)
+
+Raw.MMIK %>%
+  filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),1),
          The.Advisor.inappropriately.shared.the.customer.s.name.phone.number.email.address.Apple.ID.or.physical.address == "Driver") %>%
   select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>%
   arrange(Advisor.Staff.Type,Advisor)
+
