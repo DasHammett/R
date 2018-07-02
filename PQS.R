@@ -10,8 +10,7 @@ colnames(Raw.MMIK)[1] <- "Fiscal.Week"
 colnames(Raw.MMIK) <- gsub(0,"no",names(Raw.MMIK))
 colnames(Raw.MMIK) <- gsub("^.*\\.{3}|\\.$","",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.names(names(Raw.MMIK),unique = T)
-Raw.MMIK <- filter(Raw.MMIK,grepl("Barcelona",Advisor.Site),
-                   Call.Monitor.Type != "Calibration")
+Raw.MMIK <- filter(Raw.MMIK,grepl("Barcelona",Advisor.Site))
 colnames(Raw.MMIK) <- gsub("\\.{2}","\\.",colnames(Raw.MMIK))
 colnames(Raw.MMIK) <- make.unique(colnames(Raw.MMIK))
 Raw.MMIK$Call.Duration <- sapply(strsplit(Raw.MMIK$Call.Duration,":"), function(x)as.numeric(x[1])*60+as.numeric(x[2])+as.numeric(x[3])/60) #Convert time to decimal
@@ -188,7 +187,7 @@ Drivers <- function(attribute,lob,...) {
     mutate(Errors = sum((!!att) == 0, na.rm = T)) %>%
     mutate_at(vars(-1,-Errors),funs(sum(. == "Driver", na.rm = T))) %>%
     summarise_all(first) %>%
-    select(-2:-3) %>%
+    select(-2) %>%
     melt() %>%
     spread(!!timefr,value) %>%
     mutate(N = rowSums(.[-1]))
@@ -376,7 +375,7 @@ Issue <- function(issue,lob,...){
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   Table <- Raw.MMIK %>%
-    mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
+   # mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
     select(!!timefr,Issue_Reason,everything()) %>%
     gather(variable,value,-(!!timefr):-Exceptional.Support) %>%
     filter(value == "Driver",grepl(regex,Issue_Reason)) %>%
@@ -388,7 +387,7 @@ Issue <- function(issue,lob,...){
     arrange(desc(N))
   if(!missing(lob)){
     Table <- Table %>% filter(Advisor.Staff.Type == lob) %>% select(-Advisor.Staff.Type) %>% as.data.frame()
-    colnames(Table)[1] <- lob
+    #colnames(Table)[1] <- lob
   }
   else {
     Table <- Table %>%
@@ -456,14 +455,16 @@ Drivers2 <- function(attribute,lob,issue,...) {
 
 # Quarterly adoption
 Raw.MMIK %>%
-  select(Attributes$Attributes,Call.Monitor.Type,Period,Quarter) %>%
+  select(Fiscal.Week,Period,Attributes$Attributes,Call.Monitor.Type,Period,Period) %>%
   filter(Call.Monitor.Type == "IQE Review") %>%
-  select(Period,Quarter,everything()) %>%
+  select(Period,Period,Period,everything()) %>%
   mutate_at(vars(-1:-4),funs(as.numeric)) %>%
   mutate(Adoption = rowMeans(.[-1:-4],na.rm = T)) %>%
   group_by(Period) %>%
-  summarise(Adoption = mean(Adoption), N = n()) %>%
-  arrange(Adoption) %>% 
+  summarise(Adoption = mean(Adoption), N = n()) %>% 
+  as.data.frame() %>% 
+  #ggplot(.,aes(Adoption))+geom_histogram(colour="white",binwidth = 0.01)
+  #arrange(Adoption) %>% 
   #mutate(Period = factor(Period, Period)) %>%
   ggplot(.,aes(Period, Adoption,label = paste0(round(Adoption,2)*100,"%")))+
   geom_segment(aes(y = 0.7, yend = Adoption, x = Period, xend = Period),color = "grey50")+
@@ -504,6 +505,12 @@ Raw.MMIK %>%
   count(Advisor) %>%
   dcast(Advisor~Period, value.var = "n") %>%
   filter(!is.na(rowSums(.[c(ncol(.),ncol(.)-1)])))
+
+### Table for xBRs
+PQS(iqe = T, timeframe = period) %>% 
+  filter(variable %in% Attributes$Attributes,
+         complete.cases(.)) %>%
+  mutate_if(is.numeric,funs(paste0(round(.*100,0),"%")))
 
 
 ### Compiance outliers ###
