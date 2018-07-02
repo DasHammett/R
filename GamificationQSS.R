@@ -1,7 +1,13 @@
-setwd("/Users/jvidal/Desktop/ R scripts")
-Raw.data <- read.csv(file.choose(),header = T, stringsAsFactors = F, sep = ";", dec = ",")
+setwd("/Users/jvidal/Desktop/ R scripts/")
+system("iconv -f UTF-16LE -t UTF-8 ~/data.csv > raw_data.csv") # Convert UTF-16LE encoding to UTF-8 using bash
+Raw.data <- read.csv("raw_data.csv",header = T, stringsAsFactors = F, sep = "\t", dec = ".")
+Raw.data <- Raw.data %>%
+  mutate_all(funs(gsub("%","",.))) %>% # Remove % sign
+  mutate_at(vars(case_id,Attr..,Adoption..Self.,Adoption..IQE.),as.numeric) %>% # Transform columns of intereset to numeric
+  mutate_if(is.numeric,funs(./100)) %>% # Divide numeric columns from previous step by 100 so everything is base 1
+  select(Attribute..copy.,case_id,Attr..,Adoption..Self.,Adoption..IQE.,L1.Mgr) # Select columns needed for script
 
-Gamification <- list()
+Gamification <- list() # Create empty list to avoid cluttering the Global Environment. Next objects will be stored inside list
 
 ## Knowledge
 Gamification$K <- Raw.data %>%
@@ -31,5 +37,6 @@ Gamification$A <- Raw.data %>%
 Gamification$QSS <- left_join(Gamification$K,Gamification$C, by = c("L1.Mgr","N")) %>%
   left_join(.,Gamification$A, by = c("L1.Mgr","N")) %>%
   mutate(QSS = Knowledge * 0.25 + Adoption * 0.25 + Compliance * 0.5)
-  
-  
+
+## Write output file
+write.csv2(Gamification$QSS,"Gamification_QSS.csv",row.names = F)
