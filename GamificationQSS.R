@@ -20,29 +20,29 @@ Gamification$K <- Raw.data %>% # Store output in Gamification list with name "K"
   filter(Attribute..copy. == "Knowledge") %>% # Filter Attribute to Knowledge
   distinct(case_id, .keep_all = T) %>% # Remove duplicated case_id
   group_by(L1.Mgr) %>% # Do calculations per TL
-  summarise(N = n(), # Count number of evaluations
-            Knowledge = mean(Attr.., na.rm = T)) # Calculate average of Knowledge
+  summarise(Knowledge = mean(Attr.., na.rm = T)) # Calculate average of Knowledge
 
 ## Compliance
 Gamification$C <- Raw.data %>%
   filter(Attribute..copy. == "Compliance") %>%
   distinct(case_id, .keep_all = T) %>%
   group_by(L1.Mgr) %>%
-  summarise(N = n(),
-            Compliance = mean(Attr.., na.rm = T))
+  summarise(Compliance = mean(Attr.., na.rm = T))
 
 ## Adoption 
 Gamification$A <- Raw.data %>%
   mutate(Adoption = ifelse(is.na(Adoption..Self.), Adoption..IQE.,Adoption..Self.)) %>% # Create new column Adoption with the scores from self and IQE evaluations
   distinct(case_id, .keep_all = T) %>%
   group_by(L1.Mgr) %>%
-  summarise(N = n(),
-            Adoption = mean(Adoption, na.rm = T))
+  summarise(Adoption = mean(Adoption, na.rm = T))
 
 ## Merge all together
-Gamification$QSS <- left_join(Gamification$K,Gamification$C, by = c("L1.Mgr","N")) %>% # Join Knowledge and Compliance objects by TL and Number of evaluations (to avoid multiple columns)
-  left_join(.,Gamification$A, by = c("L1.Mgr","N")) %>% # Join previous step with Adoption
-  mutate(QSS = Knowledge * 0.25 + Adoption * 0.25 + Compliance * 0.5) # Create QSS metric with the weights
+Gamification$QSS <- left_join(Gamification$K,Gamification$C, by = "L1.Mgr") %>% # Join Knowledge and Compliance objects by TL and Number of evaluations (to avoid multiple columns)
+  left_join(.,Gamification$A, by = "L1.Mgr") %>% # Join previous step with Adoption
+  mutate(QSS = Knowledge * 0.25 + Adoption * 0.25 + Compliance * 0.5,
+         Date = Sys.Date()) %>%
+  select(L1.Mgr, Date, everything()) %>%
+  gather(KPI, Value, -L1.Mgr,-Date)
 
 ## Write output file
 write.csv2(Gamification$QSS,"Gamification_QSS.csv",row.names = F)
