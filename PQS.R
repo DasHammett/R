@@ -452,15 +452,30 @@ Drivers2 <- function(attribute,lob,issue,...) {
     return(Table)
 }
 
+Adoption <- function(lob,...) {
+  a <- data_preparation(lob,...)
+  Raw.MMIK <- a[[2]]
+  timefr <- a[[1]]
+  Raw.MMIK %>%
+    select(!!timefr,Attributes$Attributes, Call.Monitor.Type) %>%
+    mutate_at(vars(-(!!timefr),-Call.Monitor.Type), funs(as.numeric)) %>%
+    select(!!timefr,Call.Monitor.Type,everything()) %>%
+    mutate(Adoption = rowMeans(.[-1:-2], na.rm = T)) %>%
+    group_by(!!timefr) %>%
+    summarise(Adoption = mean(Adoption),
+              N = n())
+}
+
 
 # Quarterly adoption
 Raw.MMIK %>%
-  select(Fiscal.Week,Period,Attributes$Attributes,Call.Monitor.Type,Period,Period) %>%
+  select(Fiscal.Week,Fiscal.Week,Attributes$Attributes,Call.Monitor.Type,Fiscal.Week,Fiscal.Week) %>%
   filter(Call.Monitor.Type == "IQE Review") %>%
-  select(Period,Period,Period,everything()) %>%
+  #filter(grepl("Random|Announced|Business|IQE",Call.Monitor.Type)) %>%
+  select(Fiscal.Week,Fiscal.Week,Fiscal.Week,everything()) %>%
   mutate_at(vars(-1:-4),funs(as.numeric)) %>%
   mutate(Adoption = rowMeans(.[-1:-4],na.rm = T)) %>%
-  group_by(Period) %>%
+  group_by(Fiscal.Week) %>%
   summarise(Adoption = mean(Adoption), N = n()) %>% 
   as.data.frame() %>% 
   #ggplot(.,aes(Adoption))+geom_histogram(colour="white",binwidth = 0.01)
