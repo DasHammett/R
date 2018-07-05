@@ -466,26 +466,6 @@ Adoption <- function(lob,...) {
               N = n())
 }
 
-
-# Quarterly adoption
-Raw.MMIK %>%
-  select(Fiscal.Week,Fiscal.Week,Attributes$Attributes,Call.Monitor.Type,Fiscal.Week,Fiscal.Week) %>%
-  filter(Call.Monitor.Type == "IQE Review") %>%
-  #filter(grepl("Random|Announced|Business|IQE",Call.Monitor.Type)) %>%
-  select(Fiscal.Week,Fiscal.Week,Fiscal.Week,everything()) %>%
-  mutate_at(vars(-1:-4),funs(as.numeric)) %>%
-  mutate(Adoption = rowMeans(.[-1:-4],na.rm = T)) %>%
-  group_by(Fiscal.Week) %>%
-  summarise(Adoption = mean(Adoption), N = n()) %>% 
-  as.data.frame() %>% 
-  #ggplot(.,aes(Adoption))+geom_histogram(colour="white",binwidth = 0.01)
-  #arrange(Adoption) %>% 
-  #mutate(Period = factor(Period, Period)) %>%
-  ggplot(.,aes(Period, Adoption,label = paste0(round(Adoption,2)*100,"%")))+
-  geom_segment(aes(y = 0.7, yend = Adoption, x = Period, xend = Period),color = "grey50")+
-  geom_point(size = 12, shape = 21, fill = "white")+
-  geom_text()
-
 ### AHT Delta ###
 Raw.MMIK %>%
   filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
