@@ -460,11 +460,8 @@ Adoption <- function(lob,...) {
     select(!!timefr,Attributes$Attributes, Call.Monitor.Type) %>%
     mutate_at(vars(-(!!timefr),-Call.Monitor.Type), funs(as.numeric)) %>%
     select(!!timefr,Call.Monitor.Type,everything()) %>% 
-    mutate(Row = seq.int(1:nrow(.))) %>% 
-    gather(variable, value, -(!!timefr),-Call.Monitor.Type, -Row) %>% 
-    group_by(!!timefr,Row) %>% 
-    summarise(Count = sum(!is.na(value)), Sum = sum(value, na.rm = T)) %>% 
-    ungroup() %>% 
+    mutate(Sum = rowSums(.[-1:-2], na.rm = T),
+           Count = rowSums(!is.na(.[-1:-2]),na.rm = T)) %>%
     group_by(!!timefr) %>% 
     summarise(Adoption = sum(Sum)/sum(Count),
               N = n())
@@ -530,4 +527,3 @@ Raw.MMIK %>%
          The.Advisor.inappropriately.shared.the.customer.s.name.phone.number.email.address.Apple.ID.or.physical.address == "Driver") %>%
   select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>%
   arrange(Advisor.Staff.Type,Advisor)
-
