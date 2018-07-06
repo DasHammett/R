@@ -459,12 +459,16 @@ Adoption <- function(lob,...) {
   Raw.MMIK %>%
     select(!!timefr,Attributes$Attributes, Call.Monitor.Type) %>%
     mutate_at(vars(-(!!timefr),-Call.Monitor.Type), funs(as.numeric)) %>%
-    select(!!timefr,Call.Monitor.Type,everything()) %>%
-    mutate(Adoption = rowMeans(.[-1:-2], na.rm = T)) %>%
-    group_by(!!timefr) %>%
-    summarise(Adoption = mean(Adoption),
+    select(!!timefr,Call.Monitor.Type,everything()) %>% 
+    mutate(Row = seq.int(1:nrow(.))) %>% 
+    gather(variable, value, -(!!timefr),-Call.Monitor.Type, -Row) %>% 
+    group_by(!!timefr,Row) %>% 
+    summarise(Count = sum(!is.na(value)), Sum = sum(value, na.rm = T)) %>% 
+    ungroup() %>% 
+    group_by(!!timefr) %>% 
+    summarise(Adoption = sum(Sum)/sum(Count),
               N = n())
-}
+  }
 
 ### AHT Delta ###
 Raw.MMIK %>%
