@@ -51,6 +51,10 @@ write.csv2(Gamification$QSS,"Gamification_QSS.csv",row.names = F)
 ## Fake data for 10 days
 Gamification$Days <- rep(Sys.Date()-1:10)
 Gamification$Fake <- lapply(Gamification$Days, function(x) mutate(Gamification$QSS, Date = x, L1.Mgr = LETTERS[1:13])) %>% bind_rows()
-Gamification$Fake <- Gamification$Fake %>% group_by(Date) %>% mutate_at(vars(Knowledge, Compliance, Adoption), funs(.*runif(13,min=0,max=1))) %>% mutate(QSS = Knowledge * 0.25 + Adoption * 0.25 + Compliance * 0.5)
+Gamification$Fake <- Gamification$Fake %>% 
+  group_by(Date) %>% 
+  mutate_at(vars(Knowledge, Compliance, Adoption), funs(.*runif(13,min=0,max=1))) %>% 
+  mutate(QSS = Knowledge * 0.25 + Adoption * 0.25 + Compliance * 0.5)
+
 Gamification$Fake <- Gamification$Fake %>% gather(KPI, value, -Site:-Date)
 write.csv2(Gamification$Fake,"Gamification_QSS.csv",row.names = F)

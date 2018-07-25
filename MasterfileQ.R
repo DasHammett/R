@@ -1,5 +1,5 @@
 setwd("/Users/jvidal/Desktop/ R scripts")
-Raw.MF <- lapply(c("CFST CSAT (Case ID)","Raw data AHT"),function(x)load_excel("/Volumes/AC/SUPPORT_STAFF/SUPPORT_STAFF/Reports/Queue Type Reports/AHT & CSAT Masterfile per QT_20180608.xlsx",sheet=x)) #Load Masterfile QT AHT and CSAT tabs
+Raw.MF <- lapply(c("CFST CSAT (Case ID)","Raw data AHT"),function(x)load_excel("/Volumes/AC/SUPPORT_STAFF/SUPPORT_STAFF/Reports/Queue Type Reports/AHT & CSAT Masterfile per QT_20180712.xlsx",sheet=x)) #Load Masterfile QT AHT and CSAT tabs
 
 Raw.MF[[3]] <- Raw.MF[[2]] %>% #AHT-ACW
   group_by(Fiscal.Period.Week..Name.,
@@ -27,13 +27,13 @@ Raw.MF[[4]] <- Raw.MF[[1]] %>% #CSAT-IR
             IR = sum(Issue.Resolution,na.rm = T)/IR.Surveys) %>%
   filter(CSAT.Surveys != 0 & IR.Surveys != 0)
 
-full_join(Raw.MF[[4]],Raw.MF[[3]],by=c("Fiscal.Week" = "Fiscal.Period.Week..Name.",
+Raw.MF[[5]] <- full_join(Raw.MF[[4]],Raw.MF[[3]],by=c("Fiscal.Week" = "Fiscal.Period.Week..Name.",
                                        "Queue.Type.Name" = "Queue.Local.Segment",
                                        "Staff.Type.Name" = "Staffed.Type",
                                        "Agent.DS.ID" = "Advisor.DS.Id",
                                        "Agent.Full.Name" = "Advisor.Full.Name")
           ) %>%
-  select(Fiscal.Week,Queue.Type.Name,Staff.Type.Name,Agent.Full.Name,Agent.DS.ID,everything()) %>%
-  write.csv2(.,"Masterfile QT Overall.csv",row.names = F,fileEncoding = "LATIN1") #LATIN1 encoding needed for Mac to read accents
-rm(Raw.MF)
+  select(Fiscal.Week,Queue.Type.Name,Staff.Type.Name,Agent.Full.Name,Agent.DS.ID,everything())
+
+write.csv2(Raw.MF[[5]],"Masterfile QT Overall.csv",row.names = F,fileEncoding = "LATIN1") #LATIN1 encoding needed for Mac to read accents
            

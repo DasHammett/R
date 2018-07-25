@@ -210,7 +210,7 @@ IQE.Delta <- function(T2 = T,lob,...) {
     mutate_at(vars(4:length(.data)),funs(as.numeric)) %>%
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
     group_by(!!timefr) %>%
-    summarise_at(vars(3:(length(.data)-1)),funs((sum(.[IQE == 1] == 1,na.rm = T)/(sum(!is.na(.[IQE == 1]))))-
+    summarise_at(vars(4:(length(.data)-1)),funs((sum(.[IQE == 1] == 1,na.rm = T)/(sum(!is.na(.[IQE == 1]))))-
                                                 (sum(.[IQE == 0] == 1,na.rm = T)/(sum(!is.na(.[IQE == 0])))))) %>%
     melt() %>%
     mutate(value = round(value,4)) %>%
@@ -470,10 +470,10 @@ Adoption <- function(lob,...) {
 ### AHT Delta ###
 Raw.MMIK %>%
   filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
-  select(Period,Quarter,everything()) %>%
-  group_by(Period,Call.Monitor.Type) %>%
+  select(Fiscal.Week,Quarter,everything()) %>%
+  group_by(Fiscal.Week,Call.Monitor.Type) %>%
   summarise(AHT = mean(Call.Duration, na.rm = T)) %>%
-  dcast(Period~Call.Monitor.Type) %>%
+  dcast(Fiscal.Week~Call.Monitor.Type) %>%
   mutate(Delta = Random - `IQE Review`)
 
 Raw.MMIK %>%
@@ -503,12 +503,17 @@ Raw.MMIK %>%
   filter(!is.na(rowSums(.[c(ncol(.),ncol(.)-1)])))
 
 ### Table for xBRs
-PQS(iqe = T, timeframe = period) %>% 
+PQS(iqe = T) %>% 
   filter(variable %in% Attributes$Attributes,
          complete.cases(.)) %>%
-  mutate_if(is.numeric,funs(paste0(round(.*100,0),"%")))
-
-
+  mutate_if(is.numeric,funs(paste0(round(.*100,0),"%"))) %>%
+  bind_rows(Adoption(iqe = T) %>% 
+              select(-N) %>%
+              mutate_if(is.numeric,funs(paste0(round(.*100,0),"%"))) %>% 
+              spread(Fiscal.Week,Adoption) %>%
+              mutate(variable = "QSS") %>%
+              select(variable,everything()))
+  
 ### Compiance outliers ###
 Raw.MMIK %>%
   filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),1),
