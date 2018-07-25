@@ -3,7 +3,7 @@ library(reshape2)
 library(grid)
 library(gridExtra)
 library(scales)
-setwd("//Users/jvidal/Desktop/ R Scripts/Shrinkage FY18Q1")
+setwd("/Users/jvidal/Desktop/ R Scripts/Shrinkage FY18Q3")
 
 data_preparation <- function(path){
   paths <- dir(path, full.names = T)
@@ -24,8 +24,11 @@ data_preparation <- function(path){
   names(Raw.data)[names(Raw.data) == "sheet"] <- "LOB"
   names(Raw.data)[names(Raw.data) == "Calculation"] <- "Hour"
   Raw.data$Day <- factor(Raw.data$Day,levels=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"))
+  Raw.data$Hour <- gsub("([[:digit:]])(-)","\\1 \\2",Raw.data$Hour) #Make sure there is a space between nubmer and dash
   Raw.data <<- Raw.data %>% mutate(Tot.Shrink.wo.Unpl = rowSums(.[c(6,8:17)]))
 }
+
+data_preparation("Raw_files")
 
 # Raw.data <- read_excel(file.choose())
 # colnames(Raw.data) <- make.names(names(Raw.data),unique=T)
@@ -58,7 +61,7 @@ charts <- function(grouping,lob){
       scale_y_continuous(label = percent)+
       theme(axis.title.x=element_blank(),
             strip.text=element_text(size=12),
-            axis.text.y = element_text(size = 12),
+            axis.text.y = element_text(size = 16),
             plot.margin = unit(c(0,0.5,0.2,0.7),"cm"),
             axis.title.y = element_blank())+
       facet_wrap(~variable,nrow=1)
@@ -88,7 +91,7 @@ charts <- function(grouping,lob){
     scale_y_continuous(label = percent)+
     theme(axis.title.x=element_blank(),
           strip.text=element_text(size=12),
-          axis.text.y = element_text(size = 12),
+          axis.text.y = element_text(size = 16),
           plot.margin = unit(c(0,0.5,0.2,0.7),"cm"),
           axis.title.y = element_blank())+
     facet_wrap(~variable)
@@ -102,9 +105,9 @@ charts <- function(grouping,lob){
   gAux2 <- ggplotGrob(Aux[[2]])
   gAux3 <- ggplotGrob(Aux[[3]])
   gShrinkage <- ggplotGrob(Shrinkage)
-  gAux1$widths[1:3] <- gAux2$widths[1:3]
-  gAux3$widths[1:3] <- gAux2$widths[1:3]
-  gShrinkage$widths[1:3] <- gAux2$widths[1:3]
+  gAux1$widths[4] <- gAux2$widths[4]
+  gAux3$widths[4] <- gAux2$widths[4]
+  gShrinkage$widths[4] <- gAux2$widths[4]
   
   final.plot <- grid.arrange(gAux1,gAux2,gAux3,gShrinkage,
                heights=c(2,2,2,4),
@@ -179,6 +182,7 @@ final.plot <- ggplot(Period.LOB,aes(Period,Tot.Shrinkage,group=LOB))+
   geom_line()+
   facet_wrap(~LOB,ncol=1)+
   labs(title="Total Shrinkage per Period")+
+  scale_y_continuous(label = percent)+
   theme(plot.title=element_text(size=26,vjust=1.5),
         axis.text=element_text(size=12),
         strip.text=element_text(size=16))
