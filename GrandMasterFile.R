@@ -5,11 +5,25 @@ library(scales)
 library(stringr)
 library(purrr)
 
+setwd("/Users/etettey/Desktop/R scripts/") # Set working directory
+
+# Load custom function to load excel files
+load_excel <- function(file,slice = FALSE,...){
+  require(readxl)
+  inner <- read_excel(file,...)
+  names(inner) <- trimws(names(inner))
+  colnames(inner) <- make.names(names(inner),unique = T)
+  if(!missing(slice)){
+    inner <- slice(inner,slice)
+  }
+  return(inner) 
+}
+
 # Create object with name of LOBs for later filtering
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
 
 # Load and process PQS data for both internal and IQE evaluations.
-Raw.MMIK <- read.csv2(file.choose(),header = T,stringsAsFactors = F) #Load PQS_BVHQ_MMIK.csv
+Raw.MMIK <- read.csv2(file.choose(),header = T,stringsAsFactors = F) #Load PQS-NS_IQE.csv in SUPPORT_STAFF/TMS_TEAM/iPerform
 colnames(Raw.MMIK)[1] <- "Fiscal.Week"
 colnames(Raw.MMIK) <- gsub(0,"no",names(Raw.MMIK))
 colnames(Raw.MMIK) <- gsub("^.*\\.{3}|\\.$","",colnames(Raw.MMIK))
@@ -24,6 +38,22 @@ Raw.MMIK <- Raw.MMIK %>% mutate(Quarter = case_when(grepl("P01|P02|P03",Period) 
                                                     grepl("P07|P08|P09",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q3"),
                                                     grepl("P10|P11|P12",Period) ~ paste0(str_extract(Fiscal.Week,"[[:digit:]]{4}"),"Q4")),
                                 Issue_Reason = if_else(Issue == "",Reason,Issue))
+Attributes <- list()
+Attributes$Assure <- select(Raw.MMIK, Assure:(Knowledge-1))
+Attributes$Knowledge <- select(Raw.MMIK, Knowledge:(Guidance-1))
+Attributes$Guidance <- select(Raw.MMIK, Guidance:(Professionalism-1))
+Attributes$Professionalism <- select(Raw.MMIK, Professionalism:(Holds-1))
+Attributes$Holds <- select(Raw.MMIK, Holds:(Case.Duration-1))
+Attributes$Case.Duration <- select(Raw.MMIK, Case.Duration:(Logging-1))
+Attributes$Logging <- select(Raw.MMIK, Logging:(Tools-1))
+Attributes$Tools <- select(Raw.MMIK, Tools:(Refunds-1))
+Attributes$Refunds <- select(Raw.MMIK, Refunds:(Consultations-1))
+Attributes$Consultations <- select(Raw.MMIK, Consultations:(Ownership-1))
+Attributes$Ownership <- select(Raw.MMIK, Ownership:(Compliance-1))
+Attributes$Compliance <- select(Raw.MMIK, Compliance:(Was.the.issue.resolved.during.the.interaction-1))
+Attributes <- map(Attributes,colnames)
+Attributes$Attributes <- names(Attributes)
+
 
 ## Attribute results per advisor
 NS <- Raw.MMIK %>%
@@ -37,7 +67,7 @@ NS <- Raw.MMIK %>%
   summarise_at(vars(Attributes$Attributes,Evaluations,QSS), funs(mean(.,na.rm = T)))
 
 # Masterfile QT from MasterfileQ.R
-Raw.MF <- lapply(c("CFST CSAT (Case ID)","Raw data AHT"),function(x)load_excel("/Volumes/AC/SUPPORT_STAFF/SUPPORT_STAFF/Reports/Queue Type Reports/AHT & CSAT Masterfile per QT_20180712.xlsx",sheet=x)) #Load Masterfile QT AHT and CSAT tabs
+Raw.MF <- lapply(c("CFST CSAT (Case ID)","Raw data AHT"),function(x)load_excel(file.choose(),sheet=x)) #Load Masterfile QT AHT and CSAT tabs
 
 Raw.MF[[3]] <- Raw.MF[[2]] %>% #AHT-ACW
   group_by(Fiscal.Period.Week..Name.,
@@ -80,10 +110,10 @@ Raw.MF[[5]] <- Raw.MF[[5]] %>%
   mutate(Fiscal.Week = gsub("FY","20",Fiscal.Week),
          Fiscal.Week = gsub("W0","W",Fiscal.Week))
 
-NS_MF <- full_join(NS,Raw.MF[[5]],by = c("Fiscal.Week" = "Fiscal.Week",
+Grand_MF <- full_join(NS,Raw.MF[[5]],by = c("Fiscal.Week" = "Fiscal.Week",
                                         "Advisor.Staff.Type" = "Staff.Type.Name",
                                         "Advisor" = "Agent.Full.Name", 
                                         "Advisor.DSID" = "Agent.DS.ID")
                   ) %>%
   select(Quarter:Advisor.Staff.Type,Queue.Type.Name,everything())
-write.csv2(NS_MF,"NS_Masterfile.csv",row.names = F)
+write.csv2(Grand_MF,"Grand_Masterfile.csv",row.names = F)
