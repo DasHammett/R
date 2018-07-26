@@ -68,7 +68,8 @@ charts <- function(grouping,lob){
 
     if(grouping == "Hour"){
       plot <- plot +
-        scale_x_discrete(breaks=c("0800 - 0815","0900 - 0915", "1000 - 1015", "1100 - 1115","1200 - 1215", "1300 - 1315", "1400 - 1415","1500 - 1515","1600 - 1615", "1700 - 1715", "1800 - 1815", "1900 - 1915","2000 - 2015"),labels=seq(8,20,1))
+        #scale_x_discrete(breaks=c("0800 - 0815","0900 - 0915", "1000 - 1015", "1100 - 1115","1200 - 1215", "1300 - 1315", "1400 - 1415","1500 - 1515","1600 - 1615", "1700 - 1715", "1800 - 1815", "1900 - 1915","2000 - 2015"),labels=seq(8,20,1))
+        scale_x_discrete(breaks = unique(Raw.data$Hour)[seq(1,length(unique(Raw.data$Hour)),4)],labels = seq(8,20,1))
     }
     Aux[[length(Aux)+1]] <<- plot
   }
@@ -98,7 +99,7 @@ charts <- function(grouping,lob){
 
    if(grouping == "Hour"){
     Shrinkage <- Shrinkage +
-      scale_x_discrete(breaks=c("0800 - 0815","0900 - 0915", "1000 - 1015", "1100 - 1115","1200 - 1215", "1300 - 1315", "1400 - 1415","1500 - 1515","1600 - 1615", "1700 - 1715", "1800 - 1815", "1900 - 1915","2000 - 2015"),labels=seq(8,20,1))
+      scale_x_discrete(breaks = unique(Raw.data$Hour)[seq(1,length(unique(Raw.data$Hour)),4)],labels = seq(8,20,1))
    }
 
   gAux1 <- ggplotGrob(Aux[[1]])
