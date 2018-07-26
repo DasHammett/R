@@ -1,7 +1,8 @@
 library(dplyr)
-setwd("/Users/jvidal/Desktop/ R scripts/") # Set working directory
+library(tidyr)
+setwd("/Users/etettey/Desktop/R scripts/") # Set working directory
 
-file <- file.path(file.choose()) # Gather UTF-16LE file path. File should contain no spaces.
+file <- file.path(file.choose()) # Load PartnerAnalytics csv file (Attribute_Heat_data.csv)
 system(paste("iconv -f UTF-16LE -t UTF-8",file,"> raw_data.csv", sep = " ")) # Convert UTF-16LE encoding to UTF-8 using bash
 rm(file) # Remove object file as it is no longer needed
 
@@ -43,6 +44,40 @@ Gamification$QSS <- left_join(Gamification$K,Gamification$C, by = c("Site","L1.M
          Date = Sys.Date()) %>%
   select(Site, L1.Mgr, Date, everything()) %>%
   gather(KPI, Value, -Site:-Date)
+
+## Create data frame with Team names
+Gamification$Team_Names <- data.frame(
+  TL = c("ismael rios",
+         "Irene Ramos",
+         "Carolina Uran Mannocci",
+         "Pablo Tello",
+         "Alejandro Perez",
+         "Rodrigo Sarceno",
+         "Mario Casone",
+         "David Ricardo Vera Vasquez",
+         "Debora Diaz Perez",
+         "Cristian Baron Villanueva",
+         "Eva Marin"),
+  Name = c("Callback Mountain",
+           "iTeam Superheroes",
+           "Rocket Raccoon",
+           "The First Order",
+           "Mac+ Gyvers",
+           "Special Forces",
+           "Tanti Baci",
+           "Los Rockmanz",
+           "Equipo A",
+           "Apple Invaders",
+           "iBlondie"),
+  stringsAsFactors = F # Do not create factors from strings
+)
+
+## Join Team_Names table with QSS and replace L1.Mgr column with their corresponding names
+Gamification$QSS <- left_join(Gamification$QSS, Gamification$Team_Names, by = c("L1.Mgr" = "TL")) %>% 
+  mutate(Name = coalesce(Name, L1.Mgr)) %>% # Use L1.Mgr name if no Team_Name is provided
+  select(-L1.Mgr) %>% 
+  select(Site, Name, Date, everything()) %>%
+  filter(Name %in% Gamification$Team_Names$Name)
 
 ## Write output file
 write.csv2(Gamification$QSS,"Gamification_QSS.csv",row.names = F)
