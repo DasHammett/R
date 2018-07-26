@@ -5,20 +5,6 @@ library(scales)
 library(stringr)
 library(purrr)
 
-setwd("/Users/etettey/Desktop/R scripts/") # Set working directory
-
-# Load custom function to load excel files
-load_excel <- function(file,slice = FALSE,...){
-  require(readxl)
-  inner <- read_excel(file,...)
-  names(inner) <- trimws(names(inner))
-  colnames(inner) <- make.names(names(inner),unique = T)
-  if(!missing(slice)){
-    inner <- slice(inner,slice)
-  }
-  return(inner) 
-}
-
 # Create object with name of LOBs for later filtering
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
 
