@@ -77,7 +77,7 @@ Gamification$QSS <- left_join(Gamification$QSS, Gamification$Team_Names, by = c(
   mutate(Name = coalesce(Name, L1.Mgr)) %>% # Use L1.Mgr name if no Team_Name is provided
   select(-L1.Mgr) %>% 
   select(Site, Name, Date, everything()) %>%
-  filter(Name %in% Gamification$Team_Names$Name)
+  filter(Name %in% Gamification$Team_Names$Name | Site == "SBT (Lisbon)") 
 
 ## Write output file
 write.csv2(Gamification$QSS,"Gamification_QSS.csv",row.names = F)
