@@ -30,11 +30,6 @@ data_preparation <- function(path){
 
 data_preparation("Raw_files")
 
-# Raw.data <- read_excel(file.choose())
-# colnames(Raw.data) <- make.names(names(Raw.data),unique=T)
-# Raw.data$Day <- factor(Raw.data$Day,levels=c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"))
-# Raw.data <- Raw.data %>% mutate(Tot.Shrink.wo.Unpl = rowSums(.[c(6,8:17)]))
-# Raw.data <- Raw.data %>% filter(LOB != "")
 lobs <- unique(Raw.data$LOB)
 charts <- function(grouping,lob){
   Aux <- list()
