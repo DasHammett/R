@@ -244,8 +244,8 @@ Delta <- function(attribute,lob,...) {
     filter(!!att != "N/A") %>%
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
     group_by(!!timefr) %>%
-    summarise_at(vars(-1:-2,-IQE),funs((sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T))-
-                                       (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
+    summarise_at(vars(-1:-3,-IQE),funs((sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T))-
+                                       (sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T)))) %>%
     melt() %>%
     spread(!!timefr,value)
   if(!missing(lob)){
@@ -255,8 +255,8 @@ Delta <- function(attribute,lob,...) {
            Advisor.Staff.Type == lob) %>%
     mutate(IQE = ifelse(Call.Monitor.Type == "IQE Review",1,0)) %>%
     group_by(!!timefr) %>%
-    summarise_at(vars(-1:-3,-IQE),funs((sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T))-
-                                                (sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T)))) %>%
+    summarise_at(vars(-1:-3,-IQE),funs((sum(.[IQE == 1] == "Driver",na.rm = T)/sum((!!att)[IQE == 1] == 0, na.rm = T))-
+                                                (sum(.[IQE == 0] == "Driver",na.rm = T)/sum((!!att)[IQE == 0] == 0, na.rm = T)))) %>%
     melt() %>%
     spread(!!timefr,value)
     colnames(Table_melt)[1] <- lob
