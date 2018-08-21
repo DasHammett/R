@@ -101,5 +101,8 @@ Grand_MF <- full_join(NS,Raw.MF[[5]],by = c("Fiscal.Week" = "Fiscal.Week",
                                         "Advisor" = "Agent.Full.Name", 
                                         "Advisor.DSID" = "Agent.DS.ID")
                   ) %>%
+  ungroup() %>%
+  group_by(Fiscal.Week) %>%
+  fill(Quarter,Period) %>%
   select(Quarter:Advisor.Staff.Type,Queue.Type.Name,everything())
 write.csv2(Grand_MF,"Grand_Masterfile.csv",row.names = F)
