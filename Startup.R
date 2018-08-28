@@ -20,8 +20,8 @@ theme_set(theme_bw()+
                   #axis.title = element_blank(),
                   legend.position = "bottom",
                   panel.grid.minor = element_blank(),
-                  panel.grid.major.x = element_blank()
-          )
+                  panel.grid.major = element_line(colour = "grey90", size = 0.3)
+                 )
           )
 
 sample.size = function(population, rate.defects, c.lev = 0.95, precision = .05) {
