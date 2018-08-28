@@ -315,7 +315,8 @@ Component <- function(attribute,lob,...){
     group_by(!!timefr) %>%
     filter((!!att) == 0) %>%
     count(Component,Issue_Reason) %>%
-    dcast(Component+Issue_Reason~Fiscal.Week) %>%
+    spread(!!timefr,n) %>%
+    as.data.frame() %>%
     mutate(N = rowSums(.[-1:-2],na.rm = T)) %>%
     arrange(desc(N))
   return(Table)
@@ -347,7 +348,7 @@ Component_Driver <- function(attribute,lob,issue,driver,...){
   else{
     Table <- Table %>%
       group_by(variable,Issue_Reason) %>%
-      mutate_at(vars(-1:-2),funs(sum(.,na.rm = T))) %>%
+      mutate_at(vars(-1:-3),funs(sum(.,na.rm = T))) %>%
       summarise_all(first) %>%
       select(-Advisor.Staff.Type) %>%
       arrange(desc(N)) %>%
