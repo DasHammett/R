@@ -115,13 +115,18 @@ PQS <- function(chart = F,lob,margin = F,...) {
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   title.chart <- a[[3]]
+  arr <- c("ACC","ABC","ARC","AOC",Attributes$Attributes,"QSS","N")
   Table <- Raw.MMIK %>%
     select(!!timefr,ACC:AOC,Attributes$Attributes) %>%
+    mutate_at(vars(-(!!timefr)),funs(as.numeric)) %>%
+    mutate(SumQSS = rowSums(.[-1:-5],na.rm = T),
+           CountQSS = rowSums(!is.na(.[-1:-5]))) %>%
     group_by(!!timefr) %>%
-    #mutate_at(vars(-1),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
-    mutate_all(funs(sum(. == 1, na.rm = T)/sum(. != "N/A",na.rm = T))) %>%
-    mutate(N = n()) %>%
-    summarise_all(first)
+    mutate_at(vars(-(!!timefr),-SumQSS,-CountQSS),funs(sum(. == 1, na.rm = T)/sum(. != "N/A",na.rm = T))) %>%
+    mutate(QSS = sum(SumQSS)/sum(CountQSS),
+           N = n()) %>%
+    summarise_all(first) %>%
+    select(-SumQSS,-CountQSS)
   if(chart == F){
     Table_melt <- Table %>%
       select(!!timefr,ACC:N) %>%
@@ -133,7 +138,7 @@ PQS <- function(chart = F,lob,margin = F,...) {
         Table_melt,
         Table %>%
           mutate(SumN = sum(N)) %>%
-          summarise_at(vars(ACC:Compliance,SumN),funs(Avg = weighted.mean(.,N,na.rm = T))) %>%
+          summarise_at(vars(ACC:Compliance,QSS,SumN),funs(Avg = weighted.mean(.,N,na.rm = T))) %>%
           melt() %>%
           select(-1)
        ) %>%
@@ -453,21 +458,6 @@ Drivers2 <- function(attribute,lob,issue,...) {
     return(Table)
 }
 
-Adoption <- function(lob,...) {
-  a <- data_preparation(lob,...)
-  Raw.MMIK <- a[[2]]
-  timefr <- a[[1]]
-  Raw.MMIK %>%
-    select(!!timefr,Attributes$Attributes, Call.Monitor.Type) %>%
-    mutate_at(vars(-(!!timefr),-Call.Monitor.Type), funs(as.numeric)) %>%
-    select(!!timefr,Call.Monitor.Type,everything()) %>% 
-    mutate(Sum = rowSums(.[-1:-2], na.rm = T),
-           Count = rowSums(!is.na(.[-1:-2]),na.rm = T)) %>%
-    group_by(!!timefr) %>% 
-    summarise(Adoption = sum(Sum)/sum(Count),
-              N = n())
-  }
-
 ### AHT Delta ###
 Raw.MMIK %>%
   filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
@@ -533,3 +523,24 @@ Raw.MMIK %>%
          The.Advisor.inappropriately.shared.the.customer.s.name.phone.number.email.address.Apple.ID.or.physical.address == "Driver") %>%
   select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>%
   arrange(Advisor.Staff.Type,Advisor)
+
+
+
+
+
+Raw.MMIK %>%
+  select(Period,Call.Monitor.Type,ACC:AOC,Attributes$Attributes) %>%
+  filter(Call.Monitor.Type == "IQE Review") %>%
+  mutate_at(vars(-Period),funs(as.numeric)) %>%
+  mutate(Sum = rowSums(.[-1:-6],na.rm = T),
+         Count = rowSums(!is.na(.[-1:-6]))) %>%
+  group_by(Period) %>%
+  mutate_at(vars(-Period,-Sum,-Count),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
+  mutate(N = n(),QSS = sum(Sum)/sum(Count)) %>%
+  summarise_all(first)
+  
+
+
+
+Raw.MMIK %>% filter(Case.Number %in% c("100627109521","100625966057","100608455381")) %>% select(Attributes$Attributes)
+
