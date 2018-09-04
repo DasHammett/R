@@ -41,7 +41,7 @@ T2 <- "EMEA Tier 2 iOS Phone Spanish"
 Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
 lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
 
-data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, advisor, number = 6, from, to,...) {
+data_preparation <- function(lob, iqe = TRUE, timeframe = week,incube = F, random = T, advisor, number = 6, from, to,...) {
   #Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Evaluator Directed")
   Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type != "Calibration")
   quo_timeframe <- enquo(timeframe)
@@ -94,9 +94,7 @@ data_preparation <- function(lob,iqe,timeframe = week,incube = F, random = T, ad
     N <- Raw.MMIK %>% filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),1)) %>% summarise(N = n())
     title.chart <- paste0("PQS Evaluations for ",lob,": ")
   }
-  if(missing(iqe)){
-    title.chart <- paste0("Combined ",title.chart,N$N)
-  } else if(iqe == T){
+  if(iqe == T){
     Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type == "IQE Review")
     N <- Raw.MMIK %>% filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),1)) %>% summarise(N = n())
     title.chart <- paste0("IQE ",title.chart,N$N)
@@ -472,19 +470,12 @@ Raw.MMIK %>%
   select(Period,Quarter,everything()) %>%
   filter(Quarter == "2018Q3") %>%
   group_by(Fiscal.Week) %>%
-  summarise(N = n(), Period = N/length(Call.Monitor.Type[.$Period == "2018P07"]))
+  summarise(N = n(), Period = N/length(Call.Monitor.Type[.$Period == "2018P11"]))
 
 Raw.MMIK %>%
-  filter(Call.Monitor.Type != "IQE Review",Quarter == "2018Q3") %>%
+  filter(Call.Monitor.Type != "IQE Review",Quarter == "2018Q4") %>%
   group_by(Period) %>%
   summarise(Standalone = length(UUID[.$UUID == "n/a" | .$UUID == "N/A"])/length(UUID))
-
-Raw.MMIK %>%
-  filter(grepl("Random|IQE Review", Call.Monitor.Type)) %>%
-  group_by(Fiscal.Week,Call.Monitor.Type) %>%
-  summarise(AHT = mean(Call.Duration, na.rm = T)) %>%
-  dcast(Fiscal.Week~Call.Monitor.Type) %>%
-  mutate(Delta = Random - `IQE Review`)
 
 Raw.MMIK %>%
   filter(Call.Monitor.Type != "IQE Review") %>%
@@ -523,24 +514,3 @@ Raw.MMIK %>%
          The.Advisor.inappropriately.shared.the.customer.s.name.phone.number.email.address.Apple.ID.or.physical.address == "Driver") %>%
   select(Fiscal.Week,Advisor,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>%
   arrange(Advisor.Staff.Type,Advisor)
-
-
-
-
-
-Raw.MMIK %>%
-  select(Period,Call.Monitor.Type,ACC:AOC,Attributes$Attributes) %>%
-  filter(Call.Monitor.Type == "IQE Review") %>%
-  mutate_at(vars(-Period),funs(as.numeric)) %>%
-  mutate(Sum = rowSums(.[-1:-6],na.rm = T),
-         Count = rowSums(!is.na(.[-1:-6]))) %>%
-  group_by(Period) %>%
-  mutate_at(vars(-Period,-Sum,-Count),funs(sum(. == 1, na.rm = T)/sum(. != "N/A", na.rm = T))) %>%
-  mutate(N = n(),QSS = sum(Sum)/sum(Count)) %>%
-  summarise_all(first)
-  
-
-
-
-Raw.MMIK %>% filter(Case.Number %in% c("100627109521","100625966057","100608455381")) %>% select(Attributes$Attributes)
-
