@@ -4,7 +4,7 @@ library(tidyr)
 library(scales)
 library(stringr)
 library(purrr)
-Raw.MMIK <- read.csv2(file.choose(),header = T,stringsAsFactors = F) #Load PQS_BVHQ_MMIK.csv
+Raw.MMIK <- read.csv2(file.choose(),header = T,stringsAsFactors = F,na.strings = "N/A") #Load PQS_BVHQ_MMIK.csv
 #Raw.MMIK <- load_excel(file.choose(), sheet = "Phone Quality Standard")
 colnames(Raw.MMIK)[1] <- "Fiscal.Week"
 colnames(Raw.MMIK) <- gsub(0,"no",names(Raw.MMIK))
@@ -307,24 +307,41 @@ Outliers <- function(attribute, lob, rows, ...){
   return(as.data.frame(Table))
 }
 
-Component <- function(attribute,lob,...){
-  atts <- deparse(substitute(attribute)) #deparse turns evaluated attribute into string
-  att <- enquo(attribute)
-  attribute <- get(atts,Attributes)
+Component <- function(component,lob,...){
+  PQSDF <- map_df(Attributes[-length(Attributes)],~data.frame(Attribute = .x[1], Drivers = .x[-1]))
+  component <- substitute(component)
+  regex <- paste0("\\b",component,"\\b")
   a <- data_preparation(lob,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   Table <- Raw.MMIK %>%
-    select(!!timefr,attribute,Component,Issue_Reason) %>%
- #   mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
-    group_by(!!timefr) %>%
-    filter((!!att) == 0) %>%
-    count(Component,Issue_Reason) %>%
+    # mutate(Issue_Reason = if_else(is.na(Issue),Reason,Issue)) %>%
+    select(!!timefr,Component,everything()) %>%
+    gather(variable,value,-(!!timefr):-Exceptional.Support) %>%
+    filter(value == "Driver",grepl(regex,Component)) %>%
+    group_by(!!timefr,Component,Advisor.Staff.Type) %>%
+    count(variable) %>%
     spread(!!timefr,n) %>%
-    as.data.frame() %>%
-    mutate(N = rowSums(.[-1:-2],na.rm = T)) %>%
+    ungroup() %>%
+    mutate(N = rowSums(.[-1:-3],na.rm = T)) %>%
     arrange(desc(N))
+  if(!missing(lob)){
+    Table <- Table %>% filter(Advisor.Staff.Type == lob) %>% select(-Advisor.Staff.Type) %>% as.data.frame()
+    #colnames(Table)[1] <- lob
+  }
+  else {
+    Table <- Table %>%
+      group_by(variable,Component) %>%
+      mutate_at(vars(-1:-3),funs(sum(.,na.rm = T))) %>%
+      summarise_all(first) %>%
+      select(-Advisor.Staff.Type) %>%
+      arrange(Component,desc(N)) %>%
+      as.data.frame()
+  }
+  Table <- inner_join(Table,PQSDF,by = c("variable" = "Drivers")) %>%
+    select(Attribute, everything())
   return(Table)
+
 }
 
 Component_Driver <- function(attribute,lob,issue,driver,...){
@@ -374,7 +391,7 @@ Component_Driver <- function(attribute,lob,issue,driver,...){
 }
 
 Issue <- function(issue,lob,...){
-  PQSDF <- map(Attributes,~data.frame(Attribute = .x[1], Drivers = .x[-1])) %>% bind_rows() %>% filter(!Drivers %in% Attribute)
+  PQSDF <- map_df(Attributes[-length(Attributes)],~data.frame(Attribute = .x[1], Drivers = .x[-1]))
   issue <- substitute(issue)
   regex <- paste0("\\b",issue,"\\b")
   a <- data_preparation(lob,...)
