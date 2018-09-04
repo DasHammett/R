@@ -94,7 +94,9 @@ data_preparation <- function(lob, iqe = TRUE, timeframe = week,incube = F, rando
     N <- Raw.MMIK %>% filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),1)) %>% summarise(N = n())
     title.chart <- paste0("PQS Evaluations for ",lob,": ")
   }
-  if(iqe == T){
+  if(iqe == "all"){
+    title.chart <- paste0("Combined ",title.chart,N$N)
+  } else if(iqe == T){
     Raw.MMIK <- Raw.MMIK %>% filter(Call.Monitor.Type == "IQE Review")
     N <- Raw.MMIK %>% filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),1)) %>% summarise(N = n())
     title.chart <- paste0("IQE ",title.chart,N$N)
