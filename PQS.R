@@ -200,9 +200,9 @@ Drivers <- function(attribute,lob,...) {
   return(Table)
 }
 
-IQE.Delta <- function(T2 = T,lob,...) {
+IQE.Delta <- function(T2 = T,lob, iqe = "all",...) {
   options(warn = -1)
-  a <- data_preparation(lob,...)
+  a <- data_preparation(lob,iqe,...)
   Raw.MMIK <- a[[2]]
   timefr <- a[[1]]
   if(T2 == F){
