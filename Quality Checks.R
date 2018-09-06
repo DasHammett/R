@@ -1,10 +1,11 @@
 library(readxl)
+library(openxlsx)
 setwd("/Users/jvidal/Desktop/ R Scripts")
 
 ######### DSAT Review ################
 Raw.data <- load_excel(file.choose(),sheet="CSAT Raw data") #Load QRM drivers file
 select(Raw.data,Manager,Queue.Type.Name,Case.ID,Fiscal.Week,CSAT,Customer.Comments,Manager.RCA,Manager.Comments) %>%
-  filter(grepl("P09",Fiscal.Week),
+  filter(grepl("P11",Fiscal.Week),
          grepl("3|4|5", CSAT),
          grepl("<NEWLINECHAR>",Manager.Comments)) %>%
   group_by(Manager) %>%
@@ -13,7 +14,7 @@ select(Raw.data,Manager,Queue.Type.Name,Case.ID,Fiscal.Week,CSAT,Customer.Commen
          #Manager.Comments = gsub("\r","\n",Manager.Comments,perl = T), # change \r to \n
          Manager.Comments = gsub("\n(?=\n[[:alpha:]])|\n(?=\n[^[:alpha:]])","",Manager.Comments,perl = T),
          Manager.RCA = gsub("-|\\/--\\/","",Manager.RCA)) %>% # remove consecutive line breaks
-  write.csv2(.,paste("DSAT","csv",sep="."),row.names = F)
+  write.xlsx(.,"DSAT_excel.xlsx")
 
 ######### TMS Feedback review ################
 raw <- load_excel(file.choose(),sheet = 9) #Load NS Report from server
