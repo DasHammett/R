@@ -1,20 +1,20 @@
 library(readxl)
-library(openxlsx)
+library(writexl)
 setwd("/Users/jvidal/Desktop/ R Scripts")
 
 ######### DSAT Review ################
 Raw.data <- load_excel(file.choose(),sheet="CSAT Raw data") #Load QRM drivers file
 select(Raw.data,Manager,Queue.Type.Name,Case.ID,Fiscal.Week,CSAT,Customer.Comments,Manager.RCA,Manager.Comments) %>%
-  filter(grepl("P11",Fiscal.Week),
-         grepl("3|4|5", CSAT),
-         grepl("<NEWLINECHAR>",Manager.Comments)) %>%
+  filter(grepl("FY19P03",Fiscal.Week),
+         grepl("3|4|5", CSAT)) %>%
+         #grepl("<NEWLINECHAR>",Manager.Comments)) %>%
   group_by(Manager) %>%
   do(sample_n(.,min(3,nrow(.)),replace = F)) %>%
   mutate(Manager.Comments = gsub("<NEWLINECHAR>","\n",Manager.Comments, perl = T),
          #Manager.Comments = gsub("\r","\n",Manager.Comments,perl = T), # change \r to \n
          Manager.Comments = gsub("\n(?=\n[[:alpha:]])|\n(?=\n[^[:alpha:]])","",Manager.Comments,perl = T),
          Manager.RCA = gsub("-|\\/--\\/","",Manager.RCA)) %>% # remove consecutive line breaks
-  write.xlsx(.,"DSAT_excel.xlsx")
+  write_xlsx(.,"DSAT_excel.xlsx")
 
 ######### TMS Feedback review ################
 raw <- load_excel(file.choose(),sheet = 9) #Load NS Report from server
@@ -81,83 +81,3 @@ top_n(d,10) %>%
   geom_col()+
   coord_flip()+
   scale_y_continuous(expand=c(0.01,0.01))
-
-
-### FSFK ###
-Raw.FSFK <- load_excel(file.choose(), sheet = 3)
-WFM <- load_excel(file.choose(), skip = 1)
-
-# Best Performer Voice
-Raw.FSFK %>%
-  filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),1),
-         !grepl("Giovanna|Anastasia|Piro|Ximena", Lvl1.Mgr),
-         Note.Count >= 10) %>%
-  mutate(Linked.Cases = Article.Count/Note.Count) %>%
-  arrange(Role,desc(Linked.Cases)) %>% 
-  group_by(Role) %>% 
-  top_n(4) %>%
-  left_join(.,WFM, by = c("Advisor" = "Full.Name")) %>% 
-  select(Role,Advisor,HR.ID,Article.Count,Note.Count,Linked.Cases)
-
-# Best Performer SS
-Raw.FSFK %>%
-  filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),1),
-         grepl("Giovanna|Anastasia|Piro|Ximena", Lvl1.Mgr),
-         Note.Count >= 10) %>%
-  mutate(Linked.Cases = Article.Count/Note.Count) %>%
-  arrange(Role,desc(Linked.Cases)) %>% 
-  filter(Linked.Cases >= 0.80) %>% 
-  group_by(Role) %>% 
-  top_n(4) %>%
-  left_join(.,WFM, by = c("Advisor" = "Full.Name")) %>% 
-  select(Role,Advisor,HR.ID,Article.Count,Note.Count,Linked.Cases)
-
-# Best improvement Voice
-Raw.FSFK %>%
-  filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),2),
-         !grepl("Giovanna|Anastasia|Piro|Ximena", Lvl1.Mgr),
-         Note.Count >= 10) %>%
-  group_by(Advisor) %>%
-  mutate(Linked.Cases = Article.Count/Note.Count,
-         Improvement = Linked.Cases - lag(Linked.Cases)) %>%
-  filter(Linked.Cases >= 0.80) %>% 
-  ungroup() %>% 
-  filter(Linked.Cases >= 0.80) %>% 
-  arrange(Role,desc(Improvement)) %>% 
-  group_by(Role) %>% 
-  top_n(6) %>%
-  left_join(.,WFM, by = c("Advisor" = "Full.Name")) %>% 
-  select(Role,Advisor,HR.ID,Article.Count,Note.Count,Linked.Cases,Improvement)
-
-# Improvement SS
-Raw.FSFK %>%
-  filter(Fiscal.Week %in% tail(sort(unique(Fiscal.Week)),2),
-         grepl("Giovanna|Anastasia|Piro|Ximena", Lvl1.Mgr),
-         Note.Count >= 10) %>%
-  group_by(Advisor) %>%
-  mutate(Linked.Cases = Article.Count/Note.Count,
-         Improvement = Linked.Cases - lag(Linked.Cases)) %>%
-  ungroup() %>% 
-  filter(Linked.Cases >= 0.80) %>% 
-  arrange(Role,desc(Improvement)) %>% 
-  group_by(Role) %>% 
-  top_n(4) %>%
-  left_join(.,WFM, by = c("Advisor" = "Full.Name")) %>% 
-  select(Role,Advisor,HR.ID,Article.Count,Note.Count,Linked.Cases,Improvement)
-
-
-
-
-select(Raw.data,Manager,Queue.Type.Name,Case.ID,Fiscal.Week,CSAT,Customer.Comments,Manager.RCA,Manager.Comments) %>%
-  filter(grepl("P05|P04",Fiscal.Week),
-         grepl("3|4|5", CSAT),
-         grepl("<NEWLINECHAR>",Manager.Comments),
-         !is.na(Customer.Comments)) %>% 
-  sample_n(10) %>%
-  mutate(Manager.Comments = gsub("<NEWLINECHAR>","\n",Manager.Comments, perl = T),
-         #Manager.Comments = gsub("\r","\n",Manager.Comments,perl = T), # change \r to \n
-         Manager.Comments = gsub("\n(?=\n[[:alpha:]])|\n(?=\n[^[:alpha:]])","",Manager.Comments,perl = T),
-         Manager.RCA = gsub("-|\\/--\\/","",Manager.RCA)) %>%
-  write.csv2(.,"DSAT Calibration.csv",row.names = F)
-  
-
