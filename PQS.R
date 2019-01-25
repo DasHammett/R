@@ -494,7 +494,7 @@ Raw.MMIK %>%
   summarise(N = n(), Period = N/length(Call.Monitor.Type[.$Period == "2018P11"]))
 
 Raw.MMIK %>%
-  filter(Call.Monitor.Type != "IQE Review",Quarter == "2018Q4") %>%
+  filter(Call.Monitor.Type != "IQE Review",Quarter == "2019Q1") %>%
   group_by(Period) %>%
   summarise(Standalone = length(UUID[.$UUID == "n/a" | .$UUID == "N/A"])/length(UUID))
 
@@ -550,7 +550,7 @@ Raw.MMIK %>% filter(Call.Monitor.Type != "Calibration") %>%
   arrange(Advisor.Staff.Type,Advisor)
 
 Raw.MMIK %>% filter(Call.Monitor.Type != "Calibration") %>%
-  filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),4),
+  filter(Fiscal.Week %in% tail(sort(unique(Raw.MMIK$Fiscal.Week)),1),
          The.Advisor.did.not.explain.the.risk.of.or.attempt.to.prevent.content.settings.or.data.loss == "Driver") %>%
   select(Fiscal.Week,Advisor,Team.Manager,Call.Monitor.Type,Advisor.Staff.Type,Case.Number) %>% #count(Advisor.Staff.Type)
   arrange(Advisor.Staff.Type,Advisor) %>% group_by(Advisor) %>% filter(n() > 1)
