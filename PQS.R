@@ -1,5 +1,5 @@
 library(reshape2)
-library(magrittr)
+#library(magrittr)
 library(tidyr)
 library(scales)
 library(stringr)
@@ -40,7 +40,7 @@ Attributes$Attributes <- names(Attributes)
 T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
 Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
-##lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
+lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
 
 data_preparation <- function(df,lob, iqe = TRUE, timeframe = week,incube = F, random = T, advisor, number = 6, from, to,...) {
   Raw.MMIK <- df
@@ -58,7 +58,7 @@ data_preparation <- function(df,lob, iqe = TRUE, timeframe = week,incube = F, ra
   if(random == TRUE){
     Raw.MMIK <- Raw.MMIK %>% filter(!grepl("Business Directed|Evaluator Directed|DSAT Review",Call.Monitor.Type))
   }
-  if(quo_timeframe == "~week"){
+  if(quo_name(quo_timeframe) == "week"){
     timefr <- quo(Fiscal.Week)
     if(!missing(from) || !missing(to)){
       from <- grep(substitute(from),Raw.MMIK$Fiscal.Week, value = T)[1]
@@ -69,7 +69,7 @@ data_preparation <- function(df,lob, iqe = TRUE, timeframe = week,incube = F, ra
       filter(Fiscal.Week %in% tail(sort(unique(!!timefr)),number))
     }
   }
-  if(quo_timeframe == "~period"){
+  if(quo_name(quo_timeframe) == "period"){
     timefr <- quo(Period)
     if(!missing(from) || !missing(to)){
       from <- grep(substitute(from),Raw.MMIK$Period, value = T)[1]
@@ -80,7 +80,7 @@ data_preparation <- function(df,lob, iqe = TRUE, timeframe = week,incube = F, ra
       Raw.MMIK <- Raw.MMIK %>% filter(Period %in% tail(sort(unique(!!timefr)),number))
     }
   }
-  if(quo_timeframe == "~quarter"){
+  if(quo_name(quo_timeframe) == "quarter"){
     timefr <- quo(Quarter)
     Raw.MMIK <-
       Raw.MMIK %>%
@@ -155,16 +155,16 @@ PQS <- function(chart = F,lob,margin = F,df = Raw.MMIK,...) {
     Table %>%
       gather(variable,value,-(!!timefr),-N) %>%
       mutate(N = if_else(variable %in% c("ACC","ABC","ARC","AOC"),N,as.integer(NA))) %>% #Keep N in top facets only
-      mutate(!!quo_name(timefr) := case_when(timefr == "~Quarter" ~ gsub("^[[:digit:]]{2}","",!!timefr),
-                                             timefr != "~Quarter" ~ gsub("^[[:digit:]]{4}","",!!timefr)),
+      mutate(!!quo_name(timefr) := case_when(quo_name(timefr) == "Quarter" ~ gsub("^[[:digit:]]{2}","",!!timefr),
+                                             quo_name(timefr) != "Quarter" ~ gsub("^[[:digit:]]{4}","",!!timefr)),
              variable = factor(variable,unique(variable)),
              !!quo_name(timefr) := factor(!!timefr,unique(!!timefr))) %>%
       ggplot(.,aes_string(quo_name(timefr),"value"))+
       geom_line(aes(group = variable))+
       geom_point(shape=21,fill="white",size = 3)+
-      geom_text(aes_string(label = "percent(round(value,2))",x = quo_name(timefr),y="value"),vjust = -1,size=3)+
+      geom_text(aes_string(label = "percent(round(value,1))",x = quo_name(timefr),y="value"),vjust = -1,size=3)+
       geom_text(aes_string(label = "N", x = quo_name(timefr), y = "-Inf"),vjust = -1,size=3)+
-      scale_y_continuous(expand = c(0.1,0.05),label = percent,breaks = seq(0,1,by=0.2))+
+      scale_y_continuous(expand = c(0.1,0.15),label = percent,breaks = seq(0,1,by=0.2))+
       theme(legend.position = "none",
             strip.text.x = element_text(size = 12))+
       facet_wrap(~variable,ncol = 4)+
