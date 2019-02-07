@@ -11,7 +11,7 @@ grid.col = c(CSAT = "grey70",
              Holds = "darkblue",
              Professionalism = "darkgreen",
              Guidance = "darkred",
-             Ownership = "darkcyan")
+             Ownership = "cyan")
 
 chordDiagram(data, annotationTrack = c("grid"),
              transparency = 0.4,
