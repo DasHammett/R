@@ -40,7 +40,7 @@ Attributes$Attributes <- names(Attributes)
 T1 <- "EMEA Tier 1 iOS Phone Spanish"
 T2 <- "EMEA Tier 2 iOS Phone Spanish"
 Mac <- "EMEA Tier 1 Mac+ Phone Spanish"
-lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
+##lobs <- c("EMEA Tier 1 iOS Phone Spanish","EMEA Tier 1 Mac+ Phone Spanish","EMEA Tier 2 iOS Phone Spanish")
 
 data_preparation <- function(df,lob, iqe = TRUE, timeframe = week,incube = F, random = T, advisor, number = 6, from, to,...) {
   Raw.MMIK <- df
