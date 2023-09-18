@@ -12,8 +12,8 @@ library(jsonlite)
 
 # set the Last.fm API endpoint and user parameters
 endpoint <- "http://ws.audioscrobbler.com/2.0/"
-user <- "hammett80"
-api_key <- "496e264e9263df224f4936c0151ba6c9"
+user <- ""
+api_key <- ""
 
 # Load music file saved in disk from previous execution
 music <- read.csv("music2.csv", sep = ";", header = TRUE, fileEncoding = "UTF-8")
