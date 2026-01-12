@@ -14,8 +14,8 @@ Sys.setlocale("LC_TIME", "C")
 
 # set the Last.fm API endpoint and user parameters
 endpoint <- "http://ws.audioscrobbler.com/2.0/"
-user <- "hammett80"
-api_key <- "496e264e9263df224f4936c0151ba6c9"
+user <- ""
+api_key <- ""
 
 # music <- read.csv("music2.csv", sep = ";", header = TRUE, encoding = "UTF-8")
 music <- fread("music2.csv", sep = ";", header = TRUE, encoding = "UTF-8")
@@ -384,3 +384,4 @@ result <- purrr::map_df(1:totalPages, ~test_fun(.x),
     clear = FALSE  # Keep bar visible after completion
   )
 )
+
